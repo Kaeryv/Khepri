@@ -8,10 +8,34 @@ from typing import Tuple, Dict
 import json
 import sys
 
+from numba import njit
 from .fourier import transform
 
+@njit
 def nanometers(x):
     return x * 1e-9
+
+def grid_center(shape):
+    assert shape[0] % 2 == shape[1] % 2, "Grid dimensions should have same parity."
+    parity = shape[0] % 2 == 0
+    if parity:
+        return shape[0] // 2, shape[1] // 2
+    else:
+        return (shape[0] - 1) // 2, (shape[1] - 1) // 2
+
+
+def grid_size(pw):
+    assert pw[0] % 2 == pw[1] % 2, "Plane waves should have same parity."
+    parity = pw[0] % 2 == 0
+    if parity:
+        nx, ny = pw[0] // 2, pw[1] // 2
+        q = (4 * nx, 4 * ny)
+    else:
+        nx, ny = (pw[0] - 1) // 2, (pw[1] - 1) // 2
+        q = (4 * nx + 1, 4 * ny + 1)
+    
+    return (nx, ny), q
+
 
 
 ''' Physical constants '''
@@ -20,50 +44,52 @@ mu0 = 4 * pi * 1e-7
 mu0c = mu0 * c
 twopi = 2 * pi
 
+@njit
 def unitcellarea(a1:Tuple[float, float], a2: Tuple[float, float]):
     return abs(a1[0] * a2[1] - a1[1] * a2[0])
 
-def reciproc(a1: Tuple[float, float], a2: Tuple[float, float]):
+@njit
+def reciproc(a1, a2):
     coef = twopi / (a1[0] * a2[1] - a1[1] * a2[0])
     b1 = (  a2[1] * coef, -a2[0] * coef)
     b2 = ( -a1[1] * coef,  a1[0] * coef)
     return b1, b2
 
-def gvectors(b1, b2, shape: Tuple[int, int]):
-    cx, cy = ( s / 2.0 for s in shape )
-    m1 = np.arange(shape[0], dtype=complex) - cx
-    m2 = np.arange(shape[1], dtype=complex) - cy
+def gvectors(b1, b2, shape: Tuple[int, int], dtype=np.float64):
+    cx, cy = grid_center(shape)
+    m1 = np.arange(shape[0], dtype=dtype) - cx
+    m2 = np.arange(shape[1], dtype=dtype) - cy
     gx = np.add.outer(b1[0] * m1, b2[0] * m2)
     gy = np.add.outer(b1[1] * m1, b2[1] * m2)
     return gx, gy
 
-def compute_kz(gx, gy, epsilon, wavelength, kp=[0.0, 0.0]):
+def compute_kz(gx, gy, epsilon, wavelength, kp=[0.0, 0.0], dtype=np.complex128):
     kx, ky = kp  
-    #ky = 0.99* (twopi / wavelength)
-    u = np.array([ kx + gx, ky + gy, np.zeros_like(gx) ] )
+    u = np.array([ kx + gx, ky + gy ], dtype)
     unorm = norm(u, axis=0)
-    kz = np.emath.sqrt( -np.power(unorm, 2) + epsilon * (twopi / wavelength)**2 )
+
+    kz = np.emath.sqrt(epsilon * (twopi / wavelength)**2 - unorm**2)
     mask = np.logical_or(kz.imag < 0.0, np.logical_and(np.isclose(kz.imag, 0.0), kz.real < 0.0))
     np.negative(kz, where=mask, out=kz)
     return kz
 
 def compute_eta(gx, gy, kp=[0.0, 0.0]):
     kx, ky = kp
-    u = np.array([ kx + gx, ky + gy, np.zeros_like(gx) ], dtype=complex)
+    u = np.array([ kx + gx, ky + gy], dtype=np.complex128)
     unorm = norm(u, axis=0)
-    mask = unorm**2 < 1e-10
+    mask = unorm**2 < np.finfo(float).eps
     not_mask = np.logical_not(mask)
     u[:, not_mask] = np.divide(u[:,not_mask], unorm[not_mask])
-    u[:, mask] = np.array([[1,0,0]], dtype=complex).T
-    eta = np.cross(u, [0,0,1], axis=0)
-    return eta[0], eta[1]
+    u[0, mask], u[1, mask] = 1, 0
+    #eta = np.cross(u, [0,0,1], axis=0)
+    return u[1], -u[0]
 
 
 def compute_mu(gx, gy, kzg, epsilon, wavelength, kp=[0.0, 0.0]):
     kx, ky = kp
     u = np.array([ kx + gx, ky + gy, np.zeros_like(gx) ], dtype=complex)
     unorm = norm(u, axis=0)
-    mask = unorm**2 < 1e-10
+    mask = unorm**2 < np.finfo(float).eps
     not_mask = np.logical_not(mask)
     u[:, not_mask] = np.divide(u[:, not_mask], unorm[not_mask])
     u[:, mask] = np.array([[1,0,0]]).T
@@ -83,30 +109,30 @@ def epsilon_g(q, boolean_tf, epsilon_islands, eps_host, inverse=False):
     for bf, island_eps in zip(boolean_tf, epsilon_islands):
         coef = trsf(island_eps) - trsf(eps_host)
         eps_g += coef * bf
-
     return eps_g
 
 def incident(pw, E0=1.0, p_pol=0.5, s_pol=0.5):
     n = tuple(p // 2 for p in pw)
     nx, ny = n
-    g0 = 0 + nx + pw[0] * (0 + ny);
+    g0 = 0 + nx + pw[0] * (0 + ny)
     ng = pw[0] * pw[1]
-    Nplus     = np.zeros(ng);
-    Nplus[g0] = s_pol*E0;
-    Xplus     = np.zeros(ng);
-    Xplus[g0] = p_pol*E0;
-    Nminus    = np.zeros(ng);
-    Xminus    = np.zeros(ng);
+    Nplus     = np.zeros(ng)
+    Nplus[g0] = s_pol*E0
+    Xplus     = np.zeros(ng)
+    Xplus[g0] = p_pol*E0
+    Nminus    = np.zeros(ng)
+    Xminus    = np.zeros(ng)
 
     return np.asarray([ Nplus, Xplus, Nminus, Xminus ]).flatten()
 
 def compute_currents(P_in, P_sca, lattice, wavelength, theta_deg, phi_deg):
     q = lattice.area / (2.0 * mu0c * twopi / wavelength)
     ng = P_in.shape[0] // 4
+    rdtype = np.result_type(P_in, P_sca, lattice)
 
-    j1plus  = np.zeros(ng, dtype=complex)
-    j1minus = np.zeros(ng, dtype=complex)
-    j3plus  = np.zeros(ng, dtype=complex)
+    j1plus  = np.zeros(ng, dtype=rdtype)
+    j1minus = np.zeros(ng, dtype=rdtype)
+    j3plus  = np.zeros(ng, dtype=rdtype)
 
     kgz_inc = lattice.kzi(wavelength, theta_deg, phi_deg).T.flat
     kgz_emerg = lattice.kze(wavelength, theta_deg, phi_deg).T.flat

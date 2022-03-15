@@ -3,16 +3,18 @@ from cmath import pi, sqrt
 import numpy as np
 from math import prod
 from scipy.linalg import solve
-#from numpy.linalg import solve
+import numba
 import time
 
-def matrix_u(kz, eta, mu, permittivity, wavelength):
+from numba import njit, complex128, float64
+
+def matrix_u(kz, eta, mu, permittivity, wavelength, dtype):
     ng = prod(kz.shape)
 
     hU = mu0c / sqrt(permittivity)
     mugx, mugy = mu[0].T.flat, mu[1].T.flat
     etagx, etagy = eta[0].T.flat, eta[1].T.flat
-    U = np.zeros((4*ng, 4*ng), dtype=complex)
+    U = np.zeros((4*ng, 4*ng), dtype=dtype)
     c1 = sqrt(permittivity) * pi / wavelength
     st = U.strides
     Uv = np.lib.stride_tricks.as_strided(U, shape=(4, 4, ng, ng), strides=(ng*st[0], ng*st[1], st[0], st[1]))
@@ -40,10 +42,10 @@ def matrix_u(kz, eta, mu, permittivity, wavelength):
     np.fill_diagonal(Uv[0,3],   hU * dgetagx)
     return U
         
-
-def matrix_v(eta, mu, epsilon):
-    ng = prod(eta[0].shape)
-    V = np.zeros((4*ng, 4*ng), dtype=complex)
+@njit
+def matrix_v(eta, mu, epsilon, dtype):
+    ng = eta[0].shape[0] * eta[0].shape[1]
+    V = np.zeros((4*ng, 4*ng), dtype=dtype)
     hV = sqrt(epsilon) / mu0c
 
     mugx, mugy = mu[0].T.flat, mu[1].T.flat
@@ -69,8 +71,8 @@ def matrix_v(eta, mu, epsilon):
     return V
 
 
-
-def matrix_a(gx, gy, eps_g, epsinv_g, wavelength, kx=0, ky=0):
+@njit
+def matrix_a(indices, gx, gy, eps_g, epsinv_g, wavelength, kx=0, ky=0, dtype=np.complex128):
     c1 = twopi / wavelength
     nx, ny = gx.shape[0] // 2, gx.shape[1] // 2
 
@@ -79,17 +81,17 @@ def matrix_a(gx, gy, eps_g, epsinv_g, wavelength, kx=0, ky=0):
     imo  = 1j * mu0c * c1
     ismo = 1j / mu0c / c1
 
-    ng = prod(gx.shape)
+    ng = gx.shape[0] * gx.shape[1]
     
-    A = np.zeros((4*ng,4*ng), dtype=complex)
+    A = np.zeros((4*ng, 4*ng), dtype=dtype)
     for g_j in range(ng):
-        m1_j, m2_j = coords_from_index(gx.shape, (nx,ny), g_j)
+        m1_j, m2_j = indices[g_j]
         i1_j=m1_j+nx
         i2_j=m2_j+ny
         ux_j=kx+gx[i1_j,i2_j]
         uy_j=ky+gy[i1_j,i2_j]
         for g_i in range(ng):
-            m1_i,m2_i = coords_from_index(gx.shape, (nx,ny), g_i)
+            m1_i,m2_i = indices[g_i]
             i1_i=m1_i+nx
             i2_i=m2_i+ny
             ux_i=kx+gx[i1_i,i2_i]
@@ -143,8 +145,8 @@ def matrix_s(T):
 
 def multS(S1, S2):
     ng = S1.shape[0] // 4
-    S = np.empty_like(S1, dtype=complex)
-    I0 = np.eye(2*ng, 2*ng, dtype=complex)
+    S = np.empty_like(S1)
+    I0 = np.eye(2*ng, 2*ng, dtype=S1.dtype)
 
     p = np.s_[0:2*ng]
     m = np.s_[2*ng:4*ng]
@@ -160,6 +162,32 @@ def multS(S1, S2):
     S[m,m] = S1[m,m] @ (I0 + S2[m,p] @ G2) @ S2[m,m]
 
     return S
+
+def squareS(S1):
+    ng = S1.shape[0] // 4
+    S = np.empty_like(S1, dtype=complex)
+    I0 = np.eye(2*ng, 2*ng, dtype=complex)
+
+    p = np.s_[0:2*ng]
+    m = np.s_[2*ng:4*ng]
+    
+    I = I0 - (S1[p,m] @ S1[m,p])
+    Ii = np.linalg.inv(I)
+    #G1 =  solve(I, S1[p,p])
+    G1 = Ii @ S1[p,p]
+    S[p,p] = S1[p,p] @ G1
+    S1mmS1mp = S1[m,m] @ S1[m,p]
+
+    S[m,p] = S1[m,p] + S1mmS1mp @ G1
+    
+    #G2 = solve(I, S1[p,m])
+    G2 = Ii @ S1[p,m]
+    G2S1mm = G2 @ S1[m,m]
+    S[p,m] = S1[p,m] + S1[p,p] @ G2S1mm
+    S[m,m] = S1[m,m] @ S1[m,m] + S1mmS1mp @ G2S1mm
+
+    return S
+
 
 def polar_transform(etag, kzi, mugi, muge, eps_incid, eps_emerg, wavelength):
     U  = matrix_u(kzi, etag, mugi, eps_incid, wavelength)

@@ -35,6 +35,9 @@ def transform_disc(center0, center1, radius, Gx, Gy, sigma):
     transform[mask] = np.pi * radius**2 / sigma
     return transform
 
+def transform_uniform(Gx, Gy, sigma):
+    return np.zeros_like(Gx)
+
 def transform_pixmap(map, Gx, Gy, sigma):
     # 2D Fourier transform of any island
     transform = np.fft.fft2(map) / sigma
