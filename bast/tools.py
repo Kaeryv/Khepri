@@ -116,26 +116,26 @@ def incident(pw, E0=1.0, p_pol=0.5, s_pol=0.5):
     nx, ny = n
     g0 = 0 + nx + pw[0] * (0 + ny)
     ng = pw[0] * pw[1]
-    Nplus     = np.zeros(ng)
+    Nplus     = np.zeros(ng, dtype=np.complex128)
     Nplus[g0] = s_pol*E0
-    Xplus     = np.zeros(ng)
+    Xplus     = np.zeros(ng, dtype=np.complex128)
     Xplus[g0] = p_pol*E0
-    Nminus    = np.zeros(ng)
-    Xminus    = np.zeros(ng)
+    Nminus    = np.zeros(ng, dtype=np.complex128)
+    Xminus    = np.zeros(ng, dtype=np.complex128)
 
     return np.asarray([ Nplus, Xplus, Nminus, Xminus ]).flatten()
 
-def compute_currents(P_in, P_sca, lattice, wavelength, theta_deg, phi_deg):
+def compute_currents(P_in, P_sca, lattice, wavelength, kp_inc=(0.,0.)):
     q = lattice.area / (2.0 * mu0c * twopi / wavelength)
     ng = P_in.shape[0] // 4
-    rdtype = np.result_type(P_in, P_sca, lattice)
+    rdtype = np.result_type(P_in, P_sca)
 
     j1plus  = np.zeros(ng, dtype=rdtype)
     j1minus = np.zeros(ng, dtype=rdtype)
     j3plus  = np.zeros(ng, dtype=rdtype)
 
-    kgz_inc = lattice.kzi(wavelength, theta_deg, phi_deg).T.flat
-    kgz_emerg = lattice.kze(wavelength, theta_deg, phi_deg).T.flat
+    kgz_inc = lattice.kzi(wavelength, kp_inc).T.flat
+    kgz_emerg = lattice.kze(wavelength, kp_inc).T.flat
     mask = np.abs(np.imag(kgz_inc)) <= sys.float_info.epsilon
     j1plus[mask] = q * kgz_inc[mask] * (np.abs(P_in[0:ng][mask])**2 + np.abs(P_in[ng:2*ng][mask])**2)
     j1minus[mask] = q * kgz_inc[mask]*(np.abs(P_sca[2*ng:3*ng][mask])**2+np.abs(P_sca[3*ng:4*ng][mask])**2)
@@ -153,3 +153,7 @@ def compute_kplanar(eps_inc, wavelength,theta_deg=0.0, phi_deg=0.0):
     theta = np.deg2rad(theta_deg)
     kp = np.array([np.cos(phi), np.sin(phi)], dtype=complex)
     return kp * sqrt(eps_inc) * 2 * np.pi / wavelength * np.sin(theta)
+
+from math import cos, sin
+def rotation_matrix(theta):
+    return np.array([[cos(theta), -sin(theta)], [sin(theta), cos(theta)]])
