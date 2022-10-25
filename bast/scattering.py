@@ -1,11 +1,7 @@
 from .tools import *
 from .matrices import *
 from .lattice import complex_dtype
-#from scipy.linalg import expm
 from scipy.linalg import expm
-from scipy.sparse import csc_matrix
-from scipy.sparse.linalg import expm_multiply
-import time
 
 def scattering_matrix(pw, lattice, island_type, params, island_eps, eps_host, wavelength, kp, depth=100e-9, slicing_pow=3):
     _, q = grid_size(pw)
@@ -34,6 +30,20 @@ def scattering_matrix(pw, lattice, island_type, params, island_eps, eps_host, wa
         del S1
 
     return S, boolean_field
+
+
+def scattering_air(pw, lattice, wavelength, depth):
+        ng = prod(pw)
+        kzs = compute_kz(lattice.gx, lattice.gy, 1.0, wavelength).flatten()
+        S = np.zeros((4*ng, 4*ng), dtype=np.complex128)
+        for i, kz in enumerate(kzs):
+                S[i, i] = np.exp(1j * kz * depth)
+                S[ng+i, ng+i] = np.exp(1j * kz * depth)
+                S[2*ng+i, 2*ng+i] = np.exp(1j * kz * depth)
+                S[3*ng+i, 3*ng+i] = np.exp(1j * kz * depth)
+        return S
+
+
 
 
 def scattering_matrix_npy(pw, lattice, island_data, island_eps, eps_host, wavelength, theta_deg=0.0, phi_deg=0.0, depth=100e-9, slicing_pow=3):

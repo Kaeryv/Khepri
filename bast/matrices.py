@@ -163,32 +163,6 @@ def multS(S1, S2):
 
     return S
 
-def squareS(S1):
-    ng = S1.shape[0] // 4
-    S = np.empty_like(S1, dtype=complex)
-    I0 = np.eye(2*ng, 2*ng, dtype=complex)
-
-    p = np.s_[0:2*ng]
-    m = np.s_[2*ng:4*ng]
-    
-    I = I0 - (S1[p,m] @ S1[m,p])
-    Ii = np.linalg.inv(I)
-    #G1 =  solve(I, S1[p,p])
-    G1 = Ii @ S1[p,p]
-    S[p,p] = S1[p,p] @ G1
-    S1mmS1mp = S1[m,m] @ S1[m,p]
-
-    S[m,p] = S1[m,p] + S1mmS1mp @ G1
-    
-    #G2 = solve(I, S1[p,m])
-    G2 = Ii @ S1[p,m]
-    G2S1mm = G2 @ S1[m,m]
-    S[p,m] = S1[p,m] + S1[p,p] @ G2S1mm
-    S[m,m] = S1[m,m] @ S1[m,m] + S1mmS1mp @ G2S1mm
-
-    return S
-
-
 def polar_transform(etag, kzi, mugi, muge, eps_incid, eps_emerg, wavelength):
     U  = matrix_u(kzi, etag, mugi, eps_incid, wavelength)
     Vi = matrix_v(etag, mugi, eps_incid, wavelength)
