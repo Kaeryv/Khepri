@@ -40,37 +40,41 @@ def matrix_u(kz, eta, mu, permittivity, wavelength, dtype):
     np.fill_diagonal(Uv[0,3],   hU * dgetagx)
     return U
         
-@njit
 def matrix_v(eta, mu, epsilon, dtype):
     ng = eta[0].shape[0] * eta[0].shape[1]
+    
     V = np.zeros((4*ng, 4*ng), dtype=dtype)
-    hV = sqrt(epsilon) / mu0c
+    
+    hV = np.sqrt(epsilon) / mu0c
+    
+    mugx, mugy = mu[0].T.flatten(), mu[1].T.flatten()
+    etagx, etagy = eta[0].T.flatten(), eta[1].T.flatten()
 
-    mugx, mugy = mu[0].T.flat, mu[1].T.flat
-    etagx, etagy = eta[0].T.flat, eta[1].T.flat
+    st = V.strides
+    Vv = np.lib.stride_tricks.as_strided(V, shape=(4, 4, ng, ng), strides=(ng*st[0], ng*st[1], st[0], st[1]))
 
-    for g in range(ng):
-        V[g,g]=etagx[g]
-        V[ng+g,g]=etagy[g]
-        V[2*ng+g,g]=hV*mugx[g]
-        V[3*ng+g,g]=hV*mugy[g]
-        V[g,ng+g]=-mugx[g]
-        V[ng+g,ng+g]=-mugy[g]
-        V[2*ng+g,ng+g]=hV*etagx[g]
-        V[3*ng+g,ng+g]=hV*etagy[g]
-        V[g,2*ng+g]=etagx[g]
-        V[ng+g,2*ng+g]=etagy[g]
-        V[2*ng+g,2*ng+g]=-hV*mugx[g]
-        V[3*ng+g,2*ng+g]=-hV*mugy[g]
-        V[g,3*ng+g]=mugx[g]
-        V[ng+g,3*ng+g]=mugy[g]
-        V[2*ng+g,3*ng+g]=hV*etagx[g]
-        V[3*ng+g,3*ng+g]=hV*etagy[g]
+    np.fill_diagonal(Vv[0, 0], etagx)
+    np.fill_diagonal(Vv[1, 0], etagy)
+    np.fill_diagonal(Vv[2, 0], hV*mugx)
+    np.fill_diagonal(Vv[3, 0], hV*mugy)
+    np.fill_diagonal(Vv[0, 1], -mugx)
+    np.fill_diagonal(Vv[1, 1], -mugy)
+    np.fill_diagonal(Vv[2, 1], hV*etagx)
+    np.fill_diagonal(Vv[3, 1], hV*etagy)
+    np.fill_diagonal(Vv[0, 2], etagx)
+    np.fill_diagonal(Vv[1, 2], etagy)
+    np.fill_diagonal(Vv[2, 2], -hV*mugx)
+    np.fill_diagonal(Vv[3, 2], -hV*mugy)
+    np.fill_diagonal(Vv[0, 3], mugx)
+    np.fill_diagonal(Vv[1, 3], mugy)
+    np.fill_diagonal(Vv[2, 3], hV*etagx)
+    np.fill_diagonal(Vv[3, 3], hV*etagy)
+    
     return V
 
 
 @njit
-def matrix_a(indices, gx, gy, eps_g, epsinv_g, wavelength, kx=0, ky=0, dtype=np.complex128):
+def matrix_a_old(indices, gx, gy, eps_g, epsinv_g, wavelength, kx=0, ky=0, dtype=np.complex128):
     c1 = twopi / wavelength
     nx, ny = gx.shape[0] // 2, gx.shape[1] // 2
 
@@ -87,6 +91,7 @@ def matrix_a(indices, gx, gy, eps_g, epsinv_g, wavelength, kx=0, ky=0, dtype=np.
         i1_j=m1_j+nx
         i2_j=m2_j+ny
         ux_j=kx+gx[i1_j,i2_j]
+        print(i1_j, i2_j)
         uy_j=ky+gy[i1_j,i2_j]
         for g_i in range(ng):
             m1_i,m2_i = indices[g_i]
@@ -113,6 +118,51 @@ def matrix_a(indices, gx, gy, eps_g, epsinv_g, wavelength, kx=0, ky=0, dtype=np.
             A[ng+g_i,2*ng+g_j]=A[ng+g_i,2*ng+g_j]+iseo*uy_i*epsinvg*uy_j
             A[g_i,3*ng+g_j]=A[g_i,3*ng+g_j]-iseo*ux_i*epsinvg*ux_j 
             A[ng+g_i,3*ng+g_j]=-iseo*uy_i*epsinvg*ux_j
+    return A
+
+from itertools import product
+def matrix_a(indices, gx, gy, eps_g, epsinv_g, wavelength, kx=0, ky=0, dtype=np.complex128):
+    nx, ny = gx.shape[0] // 2, gx.shape[1] // 2
+
+    c1 = twopi / wavelength
+    ieo  = 1j / mu0c * c1
+    iseo = 1j * mu0c / c1
+    imo  = 1j * mu0c * c1
+    ismo = 1j / mu0c / c1
+
+    ng = gx.shape[0] * gx.shape[1]
+
+    gx = gx.T.flatten()
+    gy = gy.T.flatten()
+    
+    A = np.zeros((4*ng, 4*ng), dtype=dtype)
+    st = A.strides
+    Av = np.lib.stride_tricks.as_strided(A, shape=(4, 4, ng, ng), strides=(ng*st[0], ng*st[1], st[0], st[1]))
+
+    ux = kx+gx
+    uy = ky+gy
+
+    np.fill_diagonal(Av[2, 0], -ismo * ux*uy )
+    np.fill_diagonal(Av[3, 0], -ismo * uy**2 )
+    np.fill_diagonal(Av[2, 1],  ismo * ux**2 )
+    np.fill_diagonal(Av[3, 1],  ismo * ux*uy )
+    np.fill_diagonal(Av[1, 2], -imo          )
+    np.fill_diagonal(Av[0, 3],  imo          )
+
+    for g_j, g_i in product(range(ng), range(ng)):
+        m1_j, m2_j = indices[g_j]
+        m1_i, m2_i = indices[g_i]
+        dm1 = m1_i - m1_j
+        dm2 = m2_i - m2_j
+        i1  = dm1 + 2*nx
+        i2  = dm2 + 2*ny
+            
+        Av[3,0][g_i,g_j] += ieo * eps_g[i1,i2]
+        Av[2,1][g_i,g_j] -= ieo * eps_g[i1,i2]
+        Av[0,2][g_i,g_j]  = iseo*ux[g_i] * epsinv_g[i1,i2]*uy[g_j]
+        Av[1,2][g_i,g_j] += iseo*uy[g_i] * epsinv_g[i1,i2]*uy[g_j]
+        Av[0,3][g_i,g_j] -= iseo*ux[g_i] * epsinv_g[i1,i2]*ux[g_j] 
+        Av[1,3][g_i,g_j] -= iseo*uy[g_i] * epsinv_g[i1,i2]*ux[g_j]
     return A
 
 def matrix_s(T):
