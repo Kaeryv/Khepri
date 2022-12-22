@@ -1,21 +1,22 @@
-from collections import namedtuple
-from cmath import pi, sqrt
-import numpy as np
-from scipy.linalg import norm
-from math import floor
-from types import SimpleNamespace
-from typing import Tuple, Dict
-import json
+from cmath import sqrt
 import sys
+from math import cos, sin
+from typing import Tuple
 
-from numba import njit
-from .fourier import transform
+import numpy as np
+from numpy.lib.stride_tricks import as_strided
 
-@njit
-def nanometers(x):
+from scipy.linalg import norm
+
+from .constants import *
+
+
+def nanometers(x: float) -> float:
+    """ Convert nanometers to meters."""
     return x * 1e-9
 
-def grid_center(shape):
+def grid_center(shape: Tuple[int, int]) -> Tuple[int, int]:
+    """Returns the central element of the reciprocal lattice with given shape."""
     assert shape[0] % 2 == shape[1] % 2, "Grid dimensions should have same parity."
     parity = shape[0] % 2 == 0
     if parity:
@@ -35,33 +36,6 @@ def grid_size(pw):
         q = (4 * nx + 1, 4 * ny + 1)
     
     return (nx, ny), q
-
-
-
-''' Physical constants '''
-c = 299792458.0
-mu0 = 4 * pi * 1e-7
-mu0c = mu0 * c
-twopi = 2 * pi
-
-@njit
-def unitcellarea(a1:Tuple[float, float], a2: Tuple[float, float]):
-    return abs(a1[0] * a2[1] - a1[1] * a2[0])
-
-@njit
-def reciproc(a1, a2):
-    coef = twopi / (a1[0] * a2[1] - a1[1] * a2[0])
-    b1 = (  a2[1] * coef, -a2[0] * coef)
-    b2 = ( -a1[1] * coef,  a1[0] * coef)
-    return b1, b2
-
-def gvectors(b1, b2, shape: Tuple[int, int], dtype=np.float64):
-    cx, cy = grid_center(shape)
-    m1 = np.arange(shape[0], dtype=dtype) - cx
-    m2 = np.arange(shape[1], dtype=dtype) - cy
-    gx = np.add.outer(b1[0] * m1, b2[0] * m2)
-    gy = np.add.outer(b1[1] * m1, b2[1] * m2)
-    return gx, gy
 
 def compute_kz(gx, gy, epsilon, wavelength, kp=[0.0, 0.0], dtype=np.complex128):
     kx, ky = kp  
@@ -154,6 +128,37 @@ def compute_kplanar(eps_inc, wavelength,theta_deg=0.0, phi_deg=0.0):
     kp = np.array([np.cos(phi), np.sin(phi)], dtype=complex)
     return kp * sqrt(eps_inc) * 2 * np.pi / wavelength * np.sin(theta)
 
-from math import cos, sin
 def rotation_matrix(theta):
     return np.array([[cos(theta), -sin(theta)], [sin(theta), cos(theta)]])
+
+def joint_subspace(submatrices: list, kind=0):
+    """
+    Join scattering matrices into larger common space.
+    
+    Parameters
+    ----------
+    submatrices: list
+        Input submatrices
+    kind: int
+        Merging mode, still difficult to summarize
+
+    Source
+    ------
+    Theory for Twisted Bilayer Photonic Crystal Slabs
+    Beicheng Lou, Nathan Zhao, Momchil Minkov, Cheng Guo, Meir Orenstein, and Shanhui Fan
+    https://doi.org/10.1103/PhysRevLett.126.136101
+    """
+    N = submatrices[0].shape[0] // 4
+    result = np.zeros((4*N**2, 4*N**2), dtype=submatrices[0].dtype)
+    ds = result.strides[-1]
+
+    if kind == 0:
+        strides = (ds*e for e in (4*N**4,N**2,4*N**3+N, 4*N**2, 1))
+    else:
+        strides = (ds*e for e in (4*N**4,N**2,4*N**2+1, 4*N**3, N))
+    view = as_strided(result, (4, 4, N, N, N), strides)
+
+    for i, smat in enumerate(submatrices):
+        view_smat = as_strided(smat, (4, 4, N, N), (ds*e for e in (4*N**2,N, 4*N, 1)))
+        view[:, :, i] = view_smat
+    return result

@@ -7,6 +7,7 @@ from bast.tools import nanometers, coords_from_index
 from bast.matrices import multS
 from bast.lattice import CartesianLattice
 from bast.scattering import scattering_matrix
+from bast.fourier import transform
 from bast.eigentricks import scattering_splitlr, scattering_det
 from tqdm import tqdm
 import numpy as np

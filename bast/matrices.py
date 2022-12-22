@@ -1,12 +1,10 @@
-from .tools import coords_from_index, mu0c, twopi
-from cmath import pi, sqrt
+from .constants import mu0c, twopi, pi
+from cmath import sqrt
 import numpy as np
 from math import prod
 from scipy.linalg import solve
-import numba
-import time
 
-from numba import njit, complex128, float64
+from numba import njit
 
 def matrix_u(kz, eta, mu, permittivity, wavelength, dtype):
     ng = prod(kz.shape)

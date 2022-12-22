@@ -1,8 +1,11 @@
-from .tools import compute_eta, compute_kplanar, grid_size, reciproc, gvectors
-from .tools import compute_mu, unitcellarea, compute_kz, rotation_matrix
+from .tools import compute_eta, compute_kplanar, grid_size, grid_center
+from .tools import compute_mu, compute_kz, rotation_matrix
 from .matrices import matrix_u, matrix_v
+from .constants import *
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
+from typing import Tuple, NewType
+from numpy.typing import NDArray
 
 
 complex_dtype = { np.float32: np.complex64, np.float64: np.complex128 }
@@ -16,8 +19,37 @@ Lattice class
     The information about the incidence and emergence media is also stored
     The class provides methods to compute the polarization basis transformation
 """
+
+IntPair = Tuple[int, int]
+FloatPair = Tuple[float, float]
+Matrix = NDArray
+Degrees = float
+
+def unitcellarea(a1: FloatPair, a2: FloatPair) -> float:
+    """ Returns the area given base vectors. """
+    return abs(a1[0] * a2[1] - a1[1] * a2[0])
+
+def reciproc(a1: FloatPair, a2: FloatPair) -> FloatPair:
+    """ Compute reciproc lattice basis vectors. """
+    coef = twopi / (a1[0] * a2[1] - a1[1] * a2[0])
+    b1 = (  a2[1] * coef, -a2[0] * coef)
+    b2 = ( -a1[1] * coef,  a1[0] * coef)
+    return b1, b2
+
+
+def gvectors(b1, b2, shape: IntPair, dtype=np.float32):
+    cx, cy = grid_center(shape)
+    m1 = np.arange(shape[0], dtype=dtype) - cx
+    m2 = np.arange(shape[1], dtype=dtype) - cy
+    gx = np.add.outer(b1[0] * m1, b2[0] * m2)
+    gy = np.add.outer(b1[1] * m1, b2[1] * m2)
+    return gx, gy
+
 class CartesianLattice:
-    def __init__(self, pw, a1, a2, eps_incid=1.0, eps_emerg=1.0, dtype=np.float32):
+    def __init__(self, 
+            pw: IntPair, a1: FloatPair, a2: FloatPair, 
+            eps_incid: float=1.0, eps_emerg: float=1.0, dtype=np.float32):
+
         b1, b2 = reciproc(a1, a2)
         self.a1 = a1
         self.a2 = a2
@@ -30,8 +62,6 @@ class CartesianLattice:
         self.eps_emerg = eps_emerg
         self.eta_ = None
 
-        self.kzi_ = dict()
-
         self.dtype = dtype
         self.pw = pw
 
@@ -42,6 +72,7 @@ class CartesianLattice:
     @property
     def ny(self):
         return (self.q[1] // 4, (self.q[1] - 1) // 4)[self.q[1] % 2]
+    
     @property
     def gx(self):
         """
@@ -49,6 +80,7 @@ class CartesianLattice:
         """
         nx, ny = self.nx, self.ny
         return self.Gx[nx:self.q[0]-nx, ny:self.q[0]-ny]
+
     @gx.setter
     def gx(self, v):
         nx, ny = self.nx, self.ny
@@ -84,9 +116,7 @@ class CartesianLattice:
         """
         The planar wavevector
         """
-        kp = compute_kplanar(self.eps_incid, wavelength, theta_deg, phi_deg)
-        return kp
-
+        return compute_kplanar(self.eps_incid, wavelength, theta_deg, phi_deg)
 
     def kzi(self, wavelength, kp):
         """
@@ -106,7 +136,7 @@ class CartesianLattice:
     def muge(self, wavelength, kp):
         return compute_mu(self.gx, self.gy, self.kze(wavelength, kp), self.eps_emerg, wavelength, kp)
 
-    def U(self, wavelength, kp):
+    def U(self, wavelength: float, kp: FloatPair) -> Matrix:
         """
         The polarization basis transformation matrix
         """
@@ -116,7 +146,7 @@ class CartesianLattice:
             self.eps_incid, wavelength,
             complex_dtype[self.dtype])
     
-    def Vi(self, wavelength, kp):
+    def Vi(self, wavelength: float, kp: FloatPair) -> Matrix:
         """
         The polarization basis transformation matrix
         """
@@ -156,6 +186,7 @@ class CartesianLattice:
         return traj
     
     def g_vectors(self):
+        """ Generator for getting gvectors one by one in C order. """
         g  = np.stack((self.gx.real.flat, self.gy.real.flat), axis=0).T
         for i in range(len(g)):
             yield g[i]
@@ -164,9 +195,9 @@ class CartesianLattice:
         for i in range(len(g)):
             yield g[i]
 
-    def rotate(self, angle_deg):
+    def rotate(self, angle_deg: Degrees):
+        """ Rotate the lattice by angle_deg degrees. """
         angle = np.deg2rad(angle_deg)
-        # We get the complete extended gvectors and rotate them
         G_orig = np.array(list(self.G_vectors()))
         R = rotation_matrix(angle)
         G_rotated = R @ G_orig.T
@@ -175,13 +206,13 @@ class CartesianLattice:
 
     def __add__(self, rhs):
         pw = self.gx.shape
-        g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=np.complex128)
+        g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=complex_dtype[self.dtype])
         
         g2 = np.array(list(rhs.g_vectors()))
         for i, g1 in enumerate(self.g_vectors()):
             g[i, :, :] = g1.reshape(1, 2) + g2
         
-        l = CartesianLattice((self.pw[0]**2, self.pw[1]**2), self.a1, self.a2, 1.0, 1.0)
+        l = CartesianLattice((self.pw[0]**2, self.pw[1]**2), self.a1, self.a2, 1.0, 1.0, dtype=self.dtype)
         l.gx = g[:, :, 0]
         l.gy = g[:, :, 1]
         return l

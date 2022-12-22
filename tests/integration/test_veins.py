@@ -117,8 +117,8 @@ class TestVeins(unittest.TestCase):
         assert_allclose(Ad, data2["Ad"])
         Txyz = expm(-A * slice_depth)
         assert_allclose(Txyz, data2["T_xyz"], atol=1e-13)
-        T = U @ Txyz @ Vi # Must be kept, par of the definition
-        assert_allclose(T, data["Tslice"], atol=1e-12)
+        T = U @ Txyz @ Vi # Must be kept, part of the definition
+        assert_allclose(T, data["Tslice"], atol=1e-11)
         S = matrix_s(T)
         for _ in range(3):
             S = multS(S, S)
