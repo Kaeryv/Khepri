@@ -1,4 +1,5 @@
 # Bast
+[![Python package](https://github.com/Kaeryv/Bast/actions/workflows/python-package.yml/badge.svg)](https://github.com/Kaeryv/Bast/actions/workflows/python-package.yml)
 
 RCWA Implementation fully in python!
 - Two implementations are available
