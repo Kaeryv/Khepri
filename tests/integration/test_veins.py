@@ -88,8 +88,8 @@ class TestVeins(unittest.TestCase):
         
         data = loadmat(f"{fixtures}/epsg.mat")
         _, q = grid_size(pw)
-        epsg = epsilon_g(q, [boolean_field], [1.0], 8.9)
-        iepsg = epsilon_g(q, [boolean_field], [1.0], 8.9, inverse=True)
+        epsg = epsilon_g(q, [(boolean_field, 1.0)], 8.9)
+        iepsg = epsilon_g(q, [(boolean_field, 1.0)], 8.9, inverse=True)
         assert_allclose(epsg, data["eps_g"])
         assert_allclose(iepsg, data["epsinv_g"])
 
@@ -104,8 +104,8 @@ class TestVeins(unittest.TestCase):
         from bast.matrices import matrix_a, matrix_s
         from scipy.linalg import expm
         _, q = grid_size(pw)
-        epsg = epsilon_g(q, [boolean_field], [1.0], 8.9)
-        iepsg = epsilon_g(q, [boolean_field], [1.0], 8.9, inverse=True)
+        epsg = epsilon_g(q, [(boolean_field, 1.0)], 8.9)
+        iepsg = epsilon_g(q, [(boolean_field, 1.0)], 8.9, inverse=True)
         nx, ny = lattice.gx.shape[0] // 2, lattice.gx.shape[1] // 2
         indices = np.array([ coords_from_index(pw, (nx,ny), i) for i in range(pw[0] * pw[1]) ])
         A = matrix_a(indices, lattice.gx, lattice.gy, epsg, iepsg, wavelength, kx=kp[0], ky=kp[1])

@@ -55,3 +55,11 @@ fig.savefig("holey_slab.png")
 ```
 
 ![](examples/figures/holey_slab.png)
+
+## Testing
+
+Some integration tests can be ran with
+
+```bash
+python -m unittest discover tests
+```
