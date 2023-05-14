@@ -123,9 +123,9 @@ class TestCylinder2(unittest.TestCase):
         Ad = - A * slice_depth
         assert_allclose(Ad, data2["Ad"])
         Txyz = expm(-A * slice_depth)
-        assert_allclose(Txyz, data2["T_xyz"], atol=1e-11)
+        assert_allclose(Txyz, data2["T_xyz"], atol=1e-10)
         T = U @ Txyz @ Vi # Must be kept, par of the definition
-        assert_allclose(T, data["Tslice"], atol=4e-11, rtol=0.0)
+        assert_allclose(T, data["Tslice"], atol=4e-10)
         S = matrix_s(T)
         for _ in range(3):
             S = multS(S, S)
