@@ -4,6 +4,23 @@ from .lattice import complex_dtype
 from scipy.linalg import expm
 from .fourier import transform
 
+
+class LayerMatrix():
+    def __init__(self, S, keep_metadata=False):
+        self.S = S
+
+    def numpy(self):
+        return self.S
+    
+    def copy(self):
+        return LayerMatrix(self.S.copy())
+
+    def __matmul__(self, rhs):
+        if isinstance(rhs, LayerMatrix):
+            return LayerMatrix(multS(self.S, rhs.S))
+        else:
+            return self.S @ rhs
+
 def scattering_matrix(pw, lattice, island_type, params, island_eps, eps_host, wavelength, kp, depth=100e-9, slicing_pow=3):
     _, q = grid_size(pw)
     gx, gy = lattice.gx, lattice.gy
@@ -12,10 +29,10 @@ def scattering_matrix(pw, lattice, island_type, params, island_eps, eps_host, wa
     Vi =lattice.Vi(wavelength, kp)
 
     epsg = epsilon_g(
-            q, [boolean_field], [island_eps], eps_host
+            q, [(boolean_field, island_eps)], eps_host
     )
     epsinvg = epsilon_g(
-            q, [boolean_field], [island_eps], eps_host, 
+            q, [(boolean_field, island_eps)], eps_host, 
             inverse=True
     )
     nx, ny = gx.shape[0] // 2, gx.shape[1] // 2
@@ -30,8 +47,37 @@ def scattering_matrix(pw, lattice, island_type, params, island_eps, eps_host, wa
         S = multS(S1, S1)
         del S1
 
-    return S, boolean_field
+    return LayerMatrix(S)
 
+
+def scattering_matrix_islands(pw, lattice, islands_description, eps_host, wavelength, kp, depth=100e-9, slicing_pow=3):
+    _, q = grid_size(pw)
+    gx, gy = lattice.gx, lattice.gy
+    islands_data = [ (transform(isl["shape"], isl["params"], lattice.Gx, lattice.Gy, lattice.area), isl["epsilon"]) for isl in islands_description ]
+
+    epsg = epsilon_g(
+            q, islands_data, eps_host
+    )
+    epsinvg = epsilon_g(
+            q, islands_data, eps_host, 
+            inverse=True
+    )
+
+    U = lattice.U(wavelength, kp)
+    Vi =lattice.Vi(wavelength, kp)
+    nx, ny = gx.shape[0] // 2, gx.shape[1] // 2
+    indices = np.array([ coords_from_index(pw, (nx,ny), i) for i in range(pw[0] * pw[1]) ])
+    A = matrix_a(indices, gx, gy, epsg, epsinvg, wavelength, kx=kp[0], ky=kp[1], dtype=complex_dtype[lattice.dtype])
+    slice_depth = lattice.dtype(depth) / lattice.dtype(2**slicing_pow)
+    T = U @ expm(-A * slice_depth) @ Vi
+    
+    S = matrix_s(T)
+    for _ in range(slicing_pow):
+        S1 = S.copy()
+        S = multS(S1, S1)
+        del S1
+
+    return LayerMatrix(S)
 
 
 def scattering_air_tmp(pw, lattice, wavelength, depth):
@@ -42,7 +88,7 @@ def scattering_air_tmp(pw, lattice, wavelength, depth):
     for i, kz in enumerate(kzs.flat):
         for j in range(4):
             S[i+j*ng, i+j*ng] = np.exp(1j*kz*depth)
-    return S
+    return LayerMatrix(S)
 
 
 
@@ -71,10 +117,10 @@ def scattering_matrix_npy(pw, lattice, island_data, island_eps, eps_host, wavele
         S1 = S.copy()
         S = multS(S1,S1)
         del S1
-    return S, boolean_field
+    return LayerMatrix(S)
 
 def scattering_interface(lattice, wavelength, kp=(0,0)):
     U = lattice.U(wavelength, kp=kp)
     Ve = lattice.Ve(wavelength, kp=kp)
     T_interface = U @ Ve
-    return matrix_s(T_interface)
+    return LayerMatrix(matrix_s(T_interface))

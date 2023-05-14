@@ -1,0 +1,126 @@
+{
+    "lattice": {
+        "lattice_size": 175e-9,
+        "a1": [1, 0],
+        "a2": [0, 1],
+        "pw": [3, 3],
+        "material_incident": "Air",
+        "material_substrate": "Chitine"
+    },
+    "materials": {
+        "Air": {
+            "type": "constant",
+            "epsilon": 1.0,
+            "color": "white"
+        },
+        "Eau": {
+            "type": "constant",
+            "epsilon": 1.80,
+            "color": "blue"
+        },
+        "Chitine_Eau": {
+            "type": "constant",
+            "epsilon": 2.12,
+            "color": "darkcyan"
+        },
+        "Chitine_Air": {
+            "type": "constant",
+            "epsilon": 1.74,
+            "color": "lightgray"
+        },                
+        "Chitine": {
+            "type": "constant",
+            "epsilon": 2.43,
+            "color": "gray"
+        }
+    },
+    "layers":
+    {
+        "S1": {
+            "material": "Chitine",
+            "depth": 0.2
+        },
+        "S2": {
+            "material": "Air",
+            "depth": 0.8,
+            "geometry": [
+                { "shape": "rectangle", "center": [0.0, 0.0], "size": [0.514, 1.0], "material": "Chitine"}
+            ] 
+        },
+        "S3": {
+            "material": "Eau",
+            "depth": 0.8,
+            "geometry": [
+                { "shape": "rectangle", "center": [0.0, 0.0], "size": [0.514, 1.0], "material": "Chitine"}
+            ]
+        },
+        "S4": {
+            "material": "Chitine_Air",
+            "depth": 0.8
+        },  
+        "S5": {
+            "material": "Chitine_Eau",
+            "depth": 0.8
+        }                      
+    },
+    "stacking": {
+        "S12": { "layers": ["S1", "S2"], "repeat": 20},
+        "S13": { "layers": ["S1", "S3"], "repeat": 3},
+        "S14": { "layers": ["S1", "S4"], "repeat": 3},   
+        "S15": { "layers": ["S1", "S5"], "repeat": 3},             
+        "Stot": { "layers": ["S12","S1"]},
+        "STACK": { "layers": ["S1", "S2", "S1"]}
+    },
+    "studies": {
+        "spectrum": {
+            "type": "prefab_spectrum",
+            "device": "S12",
+            "parameters": {
+                "frequency": {
+                    "start": 0.22, 
+                    "end": 0.5, 
+                    "steps": 100
+                },
+                "theta": {
+                    "start": 0.0,
+                    "end": 0.0, 
+                    "steps": 1
+                },
+                "phi": {
+                    "start": 0.0, 
+                    "end": 0.0, 
+                    "steps": 1
+                },
+                "E0": {
+                    "s_real": 1.0,
+                    "s_imag": 0.0,
+                    "p_real": 0.0,
+                    "p_imag": 0.0
+                },
+                "output_figure": "spectre.png",
+                "output_data": "spectre.txt"
+            }
+        },
+        "view1": {
+            "type": "prefab_view_structure",
+            "device": "S12"
+        },
+        "view2": {
+            "type": "prefab_view_structure",
+            "device": "S13"
+        },
+        "view3": {
+            "type": "prefab_view_structure",
+            "device": "S14"
+        },
+        "view4": {
+            "type": "prefab_view_structure",
+            "device": "S15"
+        },
+        "view5": {
+            "type": "prefab_view_structure",
+            "device": "Stot"
+        }                                     
+    }
+
+}

@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.tmp
 *.npy
+.DS_Store
+*.whl
+build/

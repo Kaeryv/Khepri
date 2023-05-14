@@ -74,13 +74,13 @@ def coords_from_index(p: Tuple[int, int], n: Tuple[int, int], g: int):
     coord = np.unravel_index(g, p, order='F')
     return np.subtract(coord, n)
 
-def epsilon_g(q, boolean_tf, epsilon_islands, eps_host, inverse=False):
+def epsilon_g(q, islands_data, eps_host, inverse=False):
     n = q[0] // 2, q[1] // 2
     eps_g = np.zeros(q, dtype=complex)
     trsf = (lambda x: x, lambda x: 1/x) [inverse]
 
     eps_g[n[0], n[1]] = trsf(eps_host)
-    for bf, island_eps in zip(boolean_tf, epsilon_islands):
+    for bf, island_eps in islands_data:
         coef = trsf(island_eps) - trsf(eps_host)
         eps_g += coef * bf
     return eps_g
@@ -120,6 +120,13 @@ def compute_currents(P_in, P_sca, lattice, wavelength, kp_inc=(0.,0.)):
         j3plus[mask] = q * kgz_emerg[mask] * (np.abs(P_sca[0:ng][mask])**2 + np.abs(P_sca[ng:2*ng][mask])**2)
     
     return j1plus, j1minus, j3plus
+
+def compute_fluxes(lattice, wavelength, pin, pout, kp=(0,0)):
+    j1plus, j1minus, j3plus = compute_currents(pin, pout, lattice, wavelength)
+    R_tot=np.abs(np.sum(j1minus) / np.sum(j1plus))
+    T_tot=np.abs(np.sum(j3plus) / np.sum(j1plus))
+
+    return R_tot, T_tot, 1 - R_tot - T_tot
 
 
 def compute_kplanar(eps_inc, wavelength,theta_deg=0.0, phi_deg=0.0):
@@ -162,3 +169,43 @@ def joint_subspace(submatrices: list, kind=0):
         view_smat = as_strided(smat, (4, 4, N, N), (ds*e for e in (4*N**2,N, 4*N, 1)))
         view[:, :, i] = view_smat
     return result
+
+from math import prod, floor
+from itertools import product
+def convolution_matrix(structure, harmonics, dtype=np.complex128):
+    if len(harmonics) == 2:
+        harmonics += (1,)
+    elif len(harmonics) == 1:
+        harmonics += (1,1)
+
+    convmat_dim = prod(harmonics)
+    convmat_shape = convmat_dim, convmat_dim
+    convmat = np.zeros(convmat_shape, dtype=dtype)
+
+    # Ensure shape of the structure array is 3D
+    if len(structure.shape) == 1:
+        structure = np.expand_dims(structure, (-2, -1))
+    elif len(structure.shape) == 2:
+        structure = np.expand_dims(structure, (-1))
+
+    Nx, Ny, Nz = structure.shape
+    P, Q, R = harmonics
+
+    g0 = np.array([floor(n/2) for n in (Nx, Ny, Nz)])
+
+    gparkour = list(product(range(R), range(Q), range(P)))
+
+    fourier = np.fft.fftshift(np.fft.fftn(structure)) / prod(structure.shape)
+
+    for rrow, qrow, prow in gparkour:
+        row = rrow*Q*P + qrow*P + prow
+        for rcol, qcol, pcol in gparkour:
+            col = rcol*Q*P + qcol*P + pcol
+            gd = np.array([prow - pcol, qrow - qcol, rrow - rcol])
+            g = g0 + gd
+
+            convmat[row, col] = fourier[g[0], g[1], g[2]]
+
+    return convmat
+
+
