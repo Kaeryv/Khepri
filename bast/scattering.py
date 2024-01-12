@@ -119,6 +119,13 @@ def scattering_matrix_npy(pw, lattice, island_data, island_eps, eps_host, wavele
         del S1
     return LayerMatrix(S)
 
+def scattering_identity(pw):
+    I = np.eye(2*prod(pw))
+    SI = np.vstack([
+        np.hstack([np.zeros_like(I), I]),
+        np.hstack([I, np.zeros_like(I)]),
+    ])
+    return SI
 def scattering_interface(lattice, wavelength, kp=(0,0)):
     U = lattice.U(wavelength, kp=kp)
     Ve = lattice.Ve(wavelength, kp=kp)

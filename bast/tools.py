@@ -121,7 +121,23 @@ def compute_currents(P_in, P_sca, lattice, wavelength, kp_inc=(0.,0.)):
     
     return j1plus, j1minus, j3plus
 
-def compute_fluxes(lattice, wavelength, pin, pout, kp=(0,0)):
+def compute_fluxes(lattice, wavelength: float, pin, pout, kp: Tuple[float, float]= (0,0)) -> Tuple[float, float, float]:
+    '''
+        Parameters
+        -------
+        lattice : CartesianLattice
+            A basis in which to express scattering matrices
+        wavelength : float
+            Excitation wavelength in meters
+        Returns
+        -------
+        R_tot : float
+            Normalized reflectance
+        T_tot : float
+            Normalized transmittance
+        A_tot : float
+            Absorption (obtained from R_tot and T_tot)
+    '''
     j1plus, j1minus, j3plus = compute_currents(pin, pout, lattice, wavelength)
     R_tot=np.abs(np.sum(j1minus) / np.sum(j1plus))
     T_tot=np.abs(np.sum(j3plus) / np.sum(j1plus))
