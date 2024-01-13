@@ -11,7 +11,7 @@
 import numpy as np
 from math import prod, floor, sqrt
 from numpy.lib.scimath import sqrt as csqrt
-from numpy.linalg import inv
+from numpy.linalg import inv, solve
 from cmath import pi
 from .constants import c
 from .tools import convolution_matrix
@@ -39,7 +39,7 @@ def redheffer_product(SA, SB):
     S = np.array([[S11, S12], [S21, S22]])
     return S
 
-def scattering_relection(KX, KY, W0, V0):
+def scattering_reflection(KX, KY, W0, V0):
     I = np.eye(KX.shape[0])
     Pref = np.vstack([
         np.hstack([KX @ KY,     I - KX @ KX]),
@@ -60,7 +60,31 @@ def scattering_relection(KX, KY, W0, V0):
     S12 = 2 * inv(A)
     S21 = 0.5 * (A - B @ inv(A) @ B)
     S22 = B @ inv(A)
-    return np.array([[S11, S12], [S21, S22]])
+    return np.array([[S11, S12], [S21, S22]]), Wref
+
+
+def scattering_transmission(KX, KY, W0, V0):
+    I = np.eye(KX.shape[0])
+    Pref = np.vstack([
+        np.hstack([KX @ KY,     I - KX @ KX]),
+        np.hstack([KY @ KY - I,    -KY @ KX]),
+    ])
+    Qref = np.vstack([
+        np.hstack([KX @ KY,     I - KX @ KX]),
+        np.hstack([KY @ KY - I,   - KY @ KX]),
+    ])
+    # Solve the eigen problem
+    eigenvals, Wref = np.linalg.eig(Pref @ Qref)
+
+    inv_lambda = np.diag(np.reciprocal(csqrt(eigenvals)))
+    Vref = Qref @ Wref @ inv_lambda
+    A = inv(W0) @ Wref + inv(V0) @ Vref
+    B = inv(W0) @ Wref - inv(V0) @ Vref
+    S11 = B @ inv(A) 
+    S12 = 0.5 * (A - B @ inv(A) @ B)
+    S21 = 2 * inv(A)
+    S22 = - inv(A) @ B
+    return np.array([[S11, S12], [S21, S22]]), Wref
 
 def free_space_eigenmodes(KX, KY):
     I = np.eye(KX.shape[0])
@@ -118,7 +142,6 @@ class Lattice:
     def __add__(self, rhs):
         pw = self.pw
         g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=np.complex128)
-        
         g2 = np.array(list(rhs.g_vectors.T))
         for i, g1 in enumerate(self.g_vectors.T):
             g[i, :, :] = g1.reshape(1, 2) + g2
@@ -127,7 +150,7 @@ class Lattice:
         l.gx = g[:, :, 0].flatten()
         l.gy = g[:, :, 1].flatten()
 
-        l.kx, l.ky = self.kp[0] - l.gx, self.kp[1] - l.gy
+        l.kx, l.ky = self.kp[0] + l.gx, self.kp[1] + l.gy
 
 
         l.kz = kz_from_kplanar(l.kx, l.ky, l.k0, self.epsi)
@@ -195,12 +218,12 @@ def build_scatmat(k0, KX, KY, C, W0, V0, dlayer):
     inv_lambdas = np.diag(np.reciprocal(csqrt(lam2i)))
     lambdas = np.diag(csqrt(lam2i))
     VI = Qi @ WI @ inv_lambdas
-    A = inv(WI) @ W0 + inv(VI) @ V0
-    B = inv(WI) @ W0 - inv(VI) @ V0
+    A = solve(WI, W0) + solve(VI, V0)
+    B = solve(WI, W0) - solve(VI, V0)
     X = expm(-k0*lambdas*dlayer)
-    
-    S11 = inv(A - X @ B @ inv(A) @ X @ B) @ ( X @ B @ inv(A) @ X @ A - B)
-    S12 = inv(A - X @ B @ inv(A) @ X @ B) @ X @ (A - B @ inv(A) @ B)
+    T = A - X @ B @ solve(A, X) @ B
+    S11 = solve(T , ( X @ B @ inv(A) @ X @ A - B))
+    S12 = solve(T , X @ (A - B @ inv(A) @ B))
     S21 = S12
     S22 = S11
 
