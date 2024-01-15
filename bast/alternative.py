@@ -15,7 +15,7 @@ from numpy.linalg import inv, solve
 from cmath import pi
 from .constants import c
 from .tools import convolution_matrix
-from scipy.linalg import expm
+from scipy.linalg import expm, eig
 from .tools import rotation_matrix
 
 
@@ -28,13 +28,13 @@ def scat_base_transform(S, U):
 
 def redheffer_product(SA, SB):
     I = np.eye(SA[0,0].shape[0], dtype=np.complex128)
-    D = SA[0,1] @ inv(I - SB[0,0] @ SA[1,1])
-    F = SB[1,0] @ inv(I - SA[1,1] @ SB[0,0])
+    D = I - SB[0,0] @ SA[1,1]
+    F = I - SA[1,1] @ SB[0,0]
     
-    S11 = SA[0, 0] + D @ SB[0, 0] @ SA[1, 0];
-    S12 = D @ SB[0, 1];
-    S21 = F @ SA[1, 0];
-    S22 = SB[1, 1] + F @ SA[1, 1] @ SB[0, 1];
+    S11 = SA[0, 0] + SA[0,1] @ solve(D, SB[0, 0]) @ SA[1, 0];
+    S12 = SA[0,1] @ solve(D, SB[0, 1])
+    S21 = SB[1,0] @ solve(F, SA[1, 0])
+    S22 = SB[1, 1] + SB[1,0] @ solve(F, SA[1, 1]) @ SB[0, 1];
     
     S = np.array([[S11, S12], [S21, S22]])
     return S
@@ -85,16 +85,32 @@ def scattering_transmission(KX, KY, W0, V0):
     S21 = 2 * inv(A)
     S22 = - inv(A) @ B
     return np.array([[S11, S12], [S21, S22]]), Wref
-
+from scipy.linalg import block_diag
 def free_space_eigenmodes(KX, KY):
     I = np.eye(KX.shape[0])
     P = np.vstack([
         np.hstack([KX @ KY, I - KX @ KX]),
         np.hstack([KY @ KY - I, -KX @ KY]),
         ])
-    Q = P
-    lam2, W0 = np.linalg.eig(P @ Q)
-    V0 = Q @ W0 @ np.diag(1./ csqrt(lam2))
+    Q = P.copy()
+    lam, W0 = np.linalg.eig(P)
+    #lam2 = lam2**2
+    #print(lam)
+    #lam.real[lam.real < 0] *= -1
+    mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
+    np.negative(lam, where=mask, out=lam)
+    #lam = csqrt(lam**2)
+    #print("sqrt", lam)
+    #exit()
+    V0 = P @ W0 @ np.diag(1./ lam) # P=Q
+    #NEW:
+    #W = np.identity(Q.shape[0])
+    #arg = (I-KX**2-KX**2); #arg is +kz^2
+    #arg = arg.astype('complex');
+    #Kz = np.conj(np.sqrt(arg)); #conjugate enforces the negative sign convention (we also have to conjugate er and mur if they are complex)
+    #eigenvalues = block_diag(1j*Kz, 1j*Kz) #determining the modes of ex, ey... so it appears eigenvalue order MATTERS...
+    ##W is just identity matrix
+    #V = Q@np.linalg.inv(eigenvalues); #eigenvalue order is arbitrary (hard to compare with matlab
     return W0, V0
 
 def kz_from_kplanar(kx, ky, k0, epsilon):
@@ -106,7 +122,8 @@ def generate_expansion_vectors(pw, a):
     gx = 2 * pi * m / a
     gy = 2 * pi * m / a
     gx, gy= np.meshgrid(gx, gy)
-    return - gx.flatten(), - gy.flatten()
+    #return gy.flatten(),  - gx.flatten()
+    return - gx.flatten(),  - gy.flatten()
 
 class Lattice:
     def __init__(self, pw, a,  wavelength, kp=(0,0), rotation=0, compute_eigenmodes=True):
@@ -119,9 +136,14 @@ class Lattice:
 
         if rotation != 0:
             R = rotation_matrix(rotation)
-            self.gx, self.gy = R @ self.g_vectors
-
+            for i, (gx, gy) in enumerate(zip(self.gx, self.gy)):
+                gxr, gyr = R @ [gx, gy]
+                self.gx[i] = gxr
+                self.gy[i] = gyr
+            #self.gx, self.gy =   R @ self.g_vectors
+        
         self.kx, self.ky = kp[0] + self.gx, kp[1] + self.gy
+
 
 
         self.kz = kz_from_kplanar(self.kx, self.ky, self.k0, self.epsi)
@@ -141,14 +163,20 @@ class Lattice:
 
     def __add__(self, rhs):
         pw = self.pw
-        g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=np.complex128)
-        g2 = np.array(list(rhs.g_vectors.T))
+        #g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=np.complex128)
+        gr = list()
+        #g2 = np.array(list(rhs.g_vectors.T))
         for i, g1 in enumerate(self.g_vectors.T):
-            g[i, :, :] = g1.reshape(1, 2) + g2
-        
+            for j, g2 in enumerate(rhs.g_vectors.T):
+                gr.append(g1+g2)
+        gr = np.asarray(gr)
         l = Lattice((self.pw[0]**2, self.pw[1]**2), 1e-7, 2*np.pi/self.k0, (0,0), 0, False)
-        l.gx = g[:, :, 0].flatten()
-        l.gy = g[:, :, 1].flatten()
+        l.gx = gr[:, 0]
+        l.gy = gr[:, 1]
+        #    g[i, :, :] = g1.reshape(1, 2) + g2
+        
+        #l.gx = g[:, :, 0].flatten()
+        #l.gy = g[:, :, 1].flatten()
 
         l.kx, l.ky = self.kp[0] + l.gx, self.kp[1] + l.gy
 
@@ -204,10 +232,9 @@ def incident(pw, p_pol, s_pol, kp):
 
 def build_scatmat(k0, KX, KY, C, W0, V0, dlayer):
     I = np.eye(KX.shape[0])
-    IC = inv(C)
     Pi = np.vstack([
-        np.hstack([KX @ IC @ KY,     I - KX @ IC @ KX]),
-        np.hstack([KY @ IC @ KY - I,   - KY @ IC @ KX]),
+        np.hstack([KX @ solve(C, KY),     I - KX @ solve(C, KX)]),
+        np.hstack([KY @ solve(C, KY) - I,   - KY @ solve(C, KX)]),
     ])
     Qi = np.vstack([
         np.hstack([KX @ KY,     C - KX @ KX]),
@@ -220,10 +247,10 @@ def build_scatmat(k0, KX, KY, C, W0, V0, dlayer):
     VI = Qi @ WI @ inv_lambdas
     A = solve(WI, W0) + solve(VI, V0)
     B = solve(WI, W0) - solve(VI, V0)
-    X = expm(-k0*lambdas*dlayer)
+    X = np.diag(np.exp(-k0*np.diag(lambdas)*dlayer))
     T = A - X @ B @ solve(A, X) @ B
-    S11 = solve(T , ( X @ B @ inv(A) @ X @ A - B))
-    S12 = solve(T , X @ (A - B @ inv(A) @ B))
+    S11 = solve(T , ( X @ B @ solve(A, X) @ A - B))
+    S12 = solve(T , X @ (A - B @ solve(A, B)))
     S21 = S12
     S22 = S11
 
