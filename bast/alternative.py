@@ -87,34 +87,43 @@ def scattering_transmission(KX, KY, W0, V0):
     return np.array([[S11, S12], [S21, S22]]), Wref
 from scipy.linalg import block_diag
 def free_space_eigenmodes(KX, KY):
-    I = np.eye(KX.shape[0])
-    P = np.vstack([
-        np.hstack([KX @ KY, I - KX @ KX]),
-        np.hstack([KY @ KY - I, -KX @ KY]),
-        ])
-    Q = P.copy()
-    lam, W0 = np.linalg.eig(P)
-    #lam2 = lam2**2
-    #print(lam)
-    #lam.real[lam.real < 0] *= -1
-    mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
-    np.negative(lam, where=mask, out=lam)
-    #lam = csqrt(lam**2)
-    #print("sqrt", lam)
-    #exit()
-    V0 = P @ W0 @ np.diag(1./ lam) # P=Q
-    #NEW:
-    #W = np.identity(Q.shape[0])
-    #arg = (I-KX**2-KX**2); #arg is +kz^2
-    #arg = arg.astype('complex');
-    #Kz = np.conj(np.sqrt(arg)); #conjugate enforces the negative sign convention (we also have to conjugate er and mur if they are complex)
-    #eigenvalues = block_diag(1j*Kz, 1j*Kz) #determining the modes of ex, ey... so it appears eigenvalue order MATTERS...
-    ##W is just identity matrix
-    #V = Q@np.linalg.inv(eigenvalues); #eigenvalue order is arbitrary (hard to compare with matlab
-    return W0, V0
+    '''
+        Full method
+    '''
+    # I = np.eye(KX.shape[0])
+    # P = np.vstack([
+    #     np.hstack([KX @ KY, I - KX @ KX]),
+    #     np.hstack([KY @ KY - I, -KX @ KY]),
+    #     ])
+    # Q = P.copy()
+    # lam, W0 = np.linalg.eig(P)
+    # mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
+    # np.negative(lam, where=mask, out=lam)
+    # V0 = P @ W0 @ np.diag(1./ lam) # P=Q
+
+    '''
+        Analytic method
+    '''
+    N = len(KX)
+    I = np.identity(N)
+    P = np.block([[KX*KY, I-KX**2], [KY**2-I, -KY*KX]])
+    Q = P
+    W = np.identity(2*N)
+    arg = (I-KX**2-KY**2); #arg is +kz^2
+    arg = arg.astype('complex');
+    Kz = np.conj(np.sqrt(arg)); #conjugate enforces the negative sign convention (we also have to conjugate er and mur if they are complex)
+    eigenvalues = block_diag(1j*Kz, 1j*Kz) #determining the modes of ex, ey... so it appears eigenvalue order MATTERS...
+    V = Q@np.linalg.inv(eigenvalues); #eigenvalue order is arbitrary (hard to compare with matlab
+    return W,V#,Kz
+
+    #return W0, V0
 
 def kz_from_kplanar(kx, ky, k0, epsilon):
-    return np.conj(csqrt(k0**2*epsilon-kx**2-ky**2))
+    arg = k0**2*epsilon-kx**2-ky**2
+    kz = np.conj(np.sqrt(arg.astype("complex")))
+    mask = np.logical_or(kz.imag < 0.0, np.logical_and(np.isclose(kz.imag, 0.0), kz.real < 0.0))
+    np.negative(kz, where=mask, out=kz)
+    return kz
 
 def generate_expansion_vectors(pw, a):
     M = (pw[0] - 1) // 2
@@ -166,13 +175,14 @@ class Lattice:
         #g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=np.complex128)
         gr = list()
         #g2 = np.array(list(rhs.g_vectors.T))
-        for i, g1 in enumerate(self.g_vectors.T):
-            for j, g2 in enumerate(rhs.g_vectors.T):
+        for j, g2 in enumerate(rhs.g_vectors.T):
+            for i, g1 in enumerate(self.g_vectors.T):
                 gr.append(g1+g2)
         gr = np.asarray(gr)
-        l = Lattice((self.pw[0]**2, self.pw[1]**2), 1e-7, 2*np.pi/self.k0, (0,0), 0, False)
+        l = Lattice((self.pw[0]**2, self.pw[1]**2), np.nan, np.nan, (0,0), 0, False)
         l.gx = gr[:, 0]
         l.gy = gr[:, 1]
+        l.k0 = self.k0
         #    g[i, :, :] = g1.reshape(1, 2) + g2
         
         #l.gx = g[:, :, 0].flatten()
@@ -205,12 +215,12 @@ def scattering_identity(pw):
     SI = np.vstack([
         np.hstack([np.zeros_like(I), I]),
         np.hstack([I, np.zeros_like(I)]),
-    ])
+    ]).astype('complex')
     return SI
 
 def incident(pw, p_pol, s_pol, kp):
     # Normalize in pol basis
-    pol_norm = sqrt(p_pol**2 + s_pol**2)
+    pol_norm = sqrt(np.abs(p_pol)**2 + abs(s_pol)**2)
     p_pol /= pol_norm
     s_pol /= pol_norm
 
@@ -235,11 +245,11 @@ def build_scatmat(k0, KX, KY, C, W0, V0, dlayer):
     Pi = np.vstack([
         np.hstack([KX @ solve(C, KY),     I - KX @ solve(C, KX)]),
         np.hstack([KY @ solve(C, KY) - I,   - KY @ solve(C, KX)]),
-    ])
+    ]).astype('complex')
     Qi = np.vstack([
         np.hstack([KX @ KY,     C - KX @ KX]),
         np.hstack([KY @ KY - C,   - KY @ KX]),
-    ])
+    ]).astype('complex')
     
     lam2i, WI = np.linalg.eig(Pi @ Qi)
     inv_lambdas = np.diag(np.reciprocal(csqrt(lam2i)))
