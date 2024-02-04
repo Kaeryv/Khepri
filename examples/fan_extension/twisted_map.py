@@ -66,6 +66,8 @@ def transmission(sl, S21, wl):
         esrc = incident(sl.pw, 1, -1j, kp=(sl.kp[0], sl.kp[1], kzi))
     elif args.polar == "S":
         esrc = incident(sl.pw, 1, 0, kp=(sl.kp[0], sl.kp[1], kzi))
+    elif args.polar == "P":
+        esrc = incident(sl.pw, 0, 1, kp=(sl.kp[0], sl.kp[1], kzi))
     else:
         assert(False)
 

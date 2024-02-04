@@ -166,7 +166,7 @@ class Lattice:
 
         # Eigen modes of free space
         if compute_eigenmodes:
-            self.W0, self.V0 = free_space_eigenmodes(self.Kx, self.Kx)
+            self.W0, self.V0 = free_space_eigenmodes(self.Kx, self.Ky)
 
     @property
     def g_vectors(self):
