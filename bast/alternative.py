@@ -17,6 +17,7 @@ from .constants import c
 from .tools import convolution_matrix
 from scipy.linalg import expm, eig
 from .tools import rotation_matrix
+from scipy.linalg import block_diag
 
 
 def scat_base_transform(S, U):
@@ -49,6 +50,7 @@ def scattering_reflection(KX, KY, W0, V0):
         np.hstack([KX @ KY,     I - KX @ KX]),
         np.hstack([KY @ KY - I,   - KY @ KX]),
     ])
+
     # Solve the eigen problem
     eigenvals, Wref = np.linalg.eig(Pref @ Qref)
 
@@ -85,7 +87,7 @@ def scattering_transmission(KX, KY, W0, V0):
     S21 = 2 * inv(A)
     S22 = - inv(A) @ B
     return np.array([[S11, S12], [S21, S22]]), Wref
-from scipy.linalg import block_diag
+
 def free_space_eigenmodes(KX, KY):
     '''
         Full method
@@ -126,12 +128,14 @@ def kz_from_kplanar(kx, ky, k0, epsilon):
     return kz
 
 def generate_expansion_vectors(pw, a):
+    '''
+        Note: multiply by reciprocal lattice basis for @hex
+    '''
     M = (pw[0] - 1) // 2
     m = np.arange(-M, M+1)
     gx = 2 * pi * m / a
     gy = 2 * pi * m / a
     gx, gy= np.meshgrid(gx, gy)
-    #return gy.flatten(),  - gx.flatten()
     return - gx.flatten(),  - gy.flatten()
 
 class Lattice:
@@ -153,18 +157,16 @@ class Lattice:
         
         self.kx, self.ky = kp[0] + self.gx, kp[1] + self.gy
 
-
-
         self.kz = kz_from_kplanar(self.kx, self.ky, self.k0, self.epsi)
 
         # Normalize wrt k0 (magnitude of incident k-vector) and create matrices
-        self.KX = np.diag(self.kx / self.k0) 
-        self.KY = np.diag(self.ky / self.k0) 
-        self.KZ = np.diag(self.kz / self.k0)
+        self.Kx = np.diag(self.kx / self.k0) 
+        self.Ky = np.diag(self.ky / self.k0) 
+        self.Kz = np.diag(self.kz / self.k0)
 
         # Eigen modes of free space
         if compute_eigenmodes:
-            self.W0, self.V0 = free_space_eigenmodes(self.KX, self.KY)
+            self.W0, self.V0 = free_space_eigenmodes(self.Kx, self.Kx)
 
     @property
     def g_vectors(self):
@@ -194,29 +196,14 @@ class Lattice:
         l.kz = kz_from_kplanar(l.kx, l.ky, l.k0, self.epsi)
 
         # Normalize wrt k0 (magnitude of incident k-vector) and create matrices
-        l.KX = np.diag(l.kx / l.k0) 
-        l.KY = np.diag(l.ky / l.k0) 
-        l.KZ = np.diag(l.kz / l.k0)
+        l.Kx = np.diag(l.kx / l.k0) 
+        l.Ky = np.diag(l.ky / l.k0) 
+        l.Kz = np.diag(l.kz / l.k0)
 
         # Eigen modes of free space
-        l.W0, l.V0 = free_space_eigenmodes(l.KX, l.KY)
+        l.W0, l.V0 = free_space_eigenmodes(l.Kx, l.Ky)
         return l
 
-
-def scattering_layer(lattice, eps, depth=400e-9):
-    KX = lattice.KX
-    KY = lattice.KY
-    C = convolution_matrix(eps, lattice.pw)
-    S = build_scatmat(lattice.k0, KX, KY, C, lattice.W0, lattice.V0, depth) 
-    return S
-
-def scattering_identity(pw):
-    I = np.eye(prod(pw))
-    SI = np.vstack([
-        np.hstack([np.zeros_like(I), I]),
-        np.hstack([I, np.zeros_like(I)]),
-    ]).astype('complex')
-    return SI
 
 def incident(pw, p_pol, s_pol, kp):
     # Normalize in pol basis
@@ -239,8 +226,28 @@ def incident(pw, p_pol, s_pol, kp):
     pxy = s_pol * aTE + p_pol * aTM
     return np.hstack([delta*pxy[0], delta*pxy[1]])
 
+def solve_uniform_layer(Kx, Ky, er, m_r = 1):
+    '''
+        Computes P & Q matrices for homogeneous layer.
+    '''
+    N = len(Kx);
+    I = np.identity(N)
+    P = (er**-1) * np.block(
+        [
+            [ Kx * Ky,              er * m_r * I - Kx**2 ], 
+            [ Ky**2 - m_r * er * I, - Ky * Kx ]
+        ])
+    Q = (er/m_r) * P
+    W = np.identity(2*N)
+    arg = (m_r*er*I-Kx**2-Ky**2)
+    arg = arg.astype('complex')
+    Kz = np.conj(np.sqrt(arg))
+    eigenvalues = block_diag(1j*Kz, 1j*Kz)
+    # eigenvalues check if diagonal -> change inv to 1/x
+    V = Q @ np.linalg.inv(eigenvalues)
+    return W, V, eigenvalues
 
-def build_scatmat(k0, KX, KY, C, W0, V0, dlayer):
+def solve_structured_layer(k0, KX, KY, C):
     I = np.eye(KX.shape[0])
     Pi = np.vstack([
         np.hstack([KX @ solve(C, KY),     I - KX @ solve(C, KX)]),
@@ -255,13 +262,36 @@ def build_scatmat(k0, KX, KY, C, W0, V0, dlayer):
     inv_lambdas = np.diag(np.reciprocal(csqrt(lam2i)))
     lambdas = np.diag(csqrt(lam2i))
     VI = Qi @ WI @ inv_lambdas
+    return WI, VI, lambdas
+
+def build_scatmat(WI, VI, W0, V0, lambdas, dlayer, k0):
     A = solve(WI, W0) + solve(VI, V0)
     B = solve(WI, W0) - solve(VI, V0)
     X = np.diag(np.exp(-k0*np.diag(lambdas)*dlayer))
+
+    # Build the transfer matrix
     T = A - X @ B @ solve(A, X) @ B
+
+    # Convert to scattering matrix
     S11 = solve(T , ( X @ B @ solve(A, X) @ A - B))
     S12 = solve(T , X @ (A - B @ solve(A, B)))
-    S21 = S12
-    S22 = S11
-
+    S21, S22 = S12, S11
     return np.array([[S11, S12], [S21, S22]])
+
+def scattering_uniform_layer(lattice, eps_layer, depth):
+    WI, VI, lambdas =  solve_uniform_layer(lattice.Kx, lattice.Ky, eps_layer)
+    return build_scatmat(WI, VI, lattice.W0, lattice.V0, lambdas, depth, lattice.k0)
+
+def scattering_structured_layer(lattice, epsilon_map, depth):
+    C = convolution_matrix(epsilon_map, lattice.pw)
+    WI, VI, lambdas =  solve_structured_layer(lattice.k0, lattice.Kx, lattice.Ky, C)
+    return build_scatmat(WI, VI, lattice.W0, lattice.V0, lambdas, depth, lattice.k0)
+
+def scattering_identity(pw):
+    I = np.eye(prod(pw))
+    SI = np.vstack([
+        np.hstack([np.zeros_like(I), I]),
+        np.hstack([I, np.zeros_like(I)]),
+    ]).astype('complex')
+    return SI
+
