@@ -212,7 +212,6 @@ def convolution_matrix(structure, harmonics, dtype=np.complex128):
     gparkour = list(product(range(R), range(Q), range(P)))
 
     fourier = np.fft.fftshift(np.fft.fftn(structure)) / prod(structure.shape)
-
     for rrow, qrow, prow in gparkour:
         row = rrow*Q*P + qrow*P + prow
         for rcol, qcol, pcol in gparkour:
@@ -221,7 +220,6 @@ def convolution_matrix(structure, harmonics, dtype=np.complex128):
             g = g0 + gd
 
             convmat[row, col] = fourier[g[0], g[1], g[2]]
-
     return convmat
 
 

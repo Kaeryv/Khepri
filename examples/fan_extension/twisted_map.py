@@ -10,7 +10,7 @@ parser.add_argument("-batch_size", type=int, default=64)
 parser.add_argument("-polar", type=str, default="RCP")
 args = parser.parse_args()
 
-from bast.alternative import scattering_structured_layer, Lattice, scattering_identity, scat_base_transform,redheffer_product,incident,scattering_reflection,scattering_transmission, scattering_uniform_layer
+from bast.alternative import scattering_structured_layer, Lattice, scattering_identity, scat_base_transform,redheffer_product,incident,scattering_reflection,scattering_transmission, scattering_uniform_layer, poynting_fluxes
 from bast.tools import c
 import numpy as np
 from bast.tools import joint_subspace, rotation_matrix
@@ -40,22 +40,25 @@ def get_smatrix(l, wl):
     S = scattering_structured_layer(l, eps, 0.2 * a)
     Si = scattering_uniform_layer(l, 1.0, 0.3 * a)
     S = redheffer_product(S, Si)
-    S = scat_base_transform(S, l.W0)
+    #S = scat_base_transform(S, l.W0)
     # Convert [2,2,N,N] to list to [2N,2N]
     S = np.asarray(np.bmat([ list(s) for s in list(S) ]))
-    return S
+    return S, l.W0
 
 
 def forall_gs(pw, a, wl, alpha, gs):
     Ss = list()
+    W0s = list()
     for kp in gs.T:
         l = Lattice(pw, a, wl, kp, rotation=alpha)
-        Ss.append(get_smatrix(l, wl))
-    return Ss
+        Sl, W0 = get_smatrix(l, wl)
+        Ss.append(Sl)
+        W0s.append(W0)
+    return Ss, W0s
 
 
 
-def transmission(sl, S21, wl):
+def compute_fluxes(sl, S11, S21, wl):
     epsi=1
     k0 = 2*np.pi/wl
     #kzi = np.conj(csqrt(k0**2*epsi-kpinc[0]**2-kpinc[1]**2))
@@ -71,45 +74,37 @@ def transmission(sl, S21, wl):
     else:
         assert(False)
 
-    etm  = S21 @ esrc
-    tx, ty = np.split(etm, 2)
-    tz =   - (sl.Kx @ tx + sl.Ky @ ty) / np.diag(sl.Kz)
-
-    t = sl.Kz.real @ (np.abs(tx)**2+np.abs(ty)**2+np.abs(tz)**2)
-    Ttot = np.sum(t)
-    return Ttot #np.sum(np.diag(sl.KZ.real) * (np.abs(tx)**2 +np.abs(ty)**2 + np.abs(tz)**2) )
-def reflexion(sl, S11, wl):
-    epsi=1
-    k0 = 2*np.pi/wl
-    kzi = np.conj(csqrt(k0**2*epsi-kpinc[0]**2-kpinc[1]**2))
-    esrc = incident(sl.pw, 1, 1, kp=(sl.kp[0], sl.kp[1], kzi))
-    etm  = S11 @ esrc
-    rx, ry = np.split(etm, 2)
-    rz = (sl.Kx @ rx + sl.Ky @ ry) / np.diag(sl.Kz)
-    r = np.diag(sl.Kz.real) * (np.abs(rx)**2+np.abs(ry)**2+np.abs(rz)**2)
-    Rtot = np.sum(r)
-    return Rtot
+    return poynting_fluxes(sl, S21 @ esrc), poynting_fluxes(sl, S11 @ esrc)
 
 def transmission_tot(alpha, f):
     wl = c / f
     g1s = Lattice(pw, a, wl, kpinc, rotation=0).g_vectors
     g2s = Lattice(pw, a, wl, kpinc, rotation=alpha).g_vectors
     
-    S1s = forall_gs(pw, a, wl, 0, g2s)
-    S2s = forall_gs(pw, a, wl, alpha, g1s)
+    S1s, W10s = forall_gs(pw, a, wl, 0, g2s)
+    S2s, W20s = forall_gs(pw, a, wl, alpha, g1s)
     
     S1 = joint_subspace(S1s, 1)
     S2 = joint_subspace(S2s, 0)
-    
+    # W0 @ S1 @ W0' @ W0 @ S2 @ W0'
     S1 = block_split(S1)
+    bW0 = joint_subspace([np.tile(w, (2,2)) for w in W10s], 1)
+    bW0 = block_split(bW0)
+    scat_base_transform(S1, bW0[0,0])
+
     S2 = block_split(S2)
+    bW0 = joint_subspace([np.tile(w, (2,2)) for w in W20s], 1)
+    bW0 = block_split(bW0)
+    scat_base_transform(S2, bW0[0,0])
+
+
     sl = Lattice(pw, a, wl, kpinc, rotation=alpha) + Lattice(pw, a, wl, kpinc, rotation=0)
     Stot = redheffer_product(S1, S2)
     #Sr, Wr = scattering_reflection(sl.KX, sl.KY, sl.W0, sl.V0)
     #St, Wt = scattering_transmission(sl.KX, sl.KY, sl.W0, sl.V0)
     #Stot = redheffer_product(Stot, Sr)
     #Stot = redheffer_product(St, Stot)
-    return transmission(sl, Stot[1, 0], wl),reflexion(sl, Stot[0, 0], wl)
+    return compute_fluxes(sl, Stot[0,0], Stot[1, 0], wl)
 
 if __name__ == '__main__':
     fs = np.linspace(0.7 * c / a, 0.84 * c/a, args.nfreq)
@@ -126,7 +121,7 @@ if __name__ == '__main__':
         np.savez(f"{args.polar}_3x3/RT_{args.id}.npy", T=Ts, R=Rs)
     else:
         for f,angle in tqdm(awl):
-            T, R = transmission_tot(-angle, f)
+            T, R = transmission_tot(angle, f)
             Ts.append(T)
             Rs.append(R)
         np.savez(f"{args.polar}_3x3_RT.npz", T=Ts, R=Rs)

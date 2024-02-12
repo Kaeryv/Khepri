@@ -62,7 +62,7 @@ def scattering_reflection(KX, KY, W0, V0):
     S12 = 2 * inv(A)
     S21 = 0.5 * (A - B @ inv(A) @ B)
     S22 = B @ inv(A)
-    return np.array([[S11, S12], [S21, S22]]), Wref
+    return np.array([[S11, S12], [S21, S22]]), Wref, Vref
 
 
 def scattering_transmission(KX, KY, W0, V0):
@@ -86,23 +86,24 @@ def scattering_transmission(KX, KY, W0, V0):
     S12 = 0.5 * (A - B @ inv(A) @ B)
     S21 = 2 * inv(A)
     S22 = - inv(A) @ B
-    return np.array([[S11, S12], [S21, S22]]), Wref
+    return np.array([[S11, S12], [S21, S22]]), Wref, Vref, eigenvals
 
 def free_space_eigenmodes(KX, KY):
     '''
         Full method
     '''
-    # I = np.eye(KX.shape[0])
-    # P = np.vstack([
-    #     np.hstack([KX @ KY, I - KX @ KX]),
-    #     np.hstack([KY @ KY - I, -KX @ KY]),
-    #     ])
-    # Q = P.copy()
-    # lam, W0 = np.linalg.eig(P)
-    # mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
-    # np.negative(lam, where=mask, out=lam)
-    # V0 = P @ W0 @ np.diag(1./ lam) # P=Q
-
+    '''
+    I = np.eye(KX.shape[0])
+    P = np.vstack([
+        np.hstack([KX @ KY, I - KX @ KX]),
+        np.hstack([KY @ KY - I, -KX @ KY]),
+        ])
+    lam_squared, W0 = np.linalg.eig(P@P)
+    lam = csqrt(lam_squared)
+    #mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
+    #np.negative(lam, where=mask, out=lam)
+    V0 = P @ W0 / lam # P=Q
+    '''
     '''
         Analytic method
     '''
@@ -115,8 +116,8 @@ def free_space_eigenmodes(KX, KY):
     arg = arg.astype('complex');
     Kz = np.conj(np.sqrt(arg)); #conjugate enforces the negative sign convention (we also have to conjugate er and mur if they are complex)
     eigenvalues = block_diag(1j*Kz, 1j*Kz) #determining the modes of ex, ey... so it appears eigenvalue order MATTERS...
-    V = Q@np.linalg.inv(eigenvalues); #eigenvalue order is arbitrary (hard to compare with matlab
-    return W,V#,Kz
+    V = Q @ np.linalg.inv(eigenvalues); #eigenvalue order is arbitrary (hard to compare with matlab
+    return W,V
 
     #return W0, V0
 
@@ -135,7 +136,7 @@ def generate_expansion_vectors(pw, a):
     m = np.arange(-M, M+1)
     gx = 2 * pi * m / a
     gy = 2 * pi * m / a
-    gx, gy= np.meshgrid(gx, gy)
+    gx, gy = np.meshgrid(gx, gy)
     return - gx.flatten(),  - gy.flatten()
 
 class Lattice:
@@ -259,14 +260,16 @@ def solve_structured_layer(k0, KX, KY, C):
     ]).astype('complex')
     
     lam2i, WI = np.linalg.eig(Pi @ Qi)
-    inv_lambdas = np.diag(np.reciprocal(csqrt(lam2i)))
-    lambdas = np.diag(csqrt(lam2i))
-    VI = Qi @ WI @ inv_lambdas
-    return WI, VI, lambdas
+    lam = np.sqrt(lam2i) # changed from np.sqrt()
+    lam = np.where(np.imag(lam) < 0, -lam, lam)
+    VI = Qi @ WI / lam
+    return WI, VI, np.diag(lam)
 
 def build_scatmat(WI, VI, W0, V0, lambdas, dlayer, k0):
-    A = solve(WI, W0) + solve(VI, V0)
-    B = solve(WI, W0) - solve(VI, V0)
+    t1 = solve(WI, W0)
+    t2 = solve(VI, V0)
+    A = t1 + t2
+    B = t1 - t2
     X = np.diag(np.exp(-k0*np.diag(lambdas)*dlayer))
 
     # Build the transfer matrix
@@ -278,14 +281,22 @@ def build_scatmat(WI, VI, W0, V0, lambdas, dlayer, k0):
     S21, S22 = S12, S11
     return np.array([[S11, S12], [S21, S22]])
 
-def scattering_uniform_layer(lattice, eps_layer, depth):
-    WI, VI, lambdas =  solve_uniform_layer(lattice.Kx, lattice.Ky, eps_layer)
-    return build_scatmat(WI, VI, lattice.W0, lattice.V0, lambdas, depth, lattice.k0)
+def scattering_uniform_layer(lattice, eps_layer, depth, return_eigenspace=False):
+    WI, VI, ev =  solve_uniform_layer(lattice.Kx, lattice.Ky, eps_layer)
+    S = build_scatmat(WI, VI, lattice.W0, lattice.V0, ev, depth, lattice.k0)
+    if return_eigenspace:
+        return S, ev, WI
+    else:
+        return S
 
-def scattering_structured_layer(lattice, epsilon_map, depth):
+def scattering_structured_layer(lattice, epsilon_map, depth, return_eigenspace=False):
     C = convolution_matrix(epsilon_map, lattice.pw)
-    WI, VI, lambdas =  solve_structured_layer(lattice.k0, lattice.Kx, lattice.Ky, C)
-    return build_scatmat(WI, VI, lattice.W0, lattice.V0, lambdas, depth, lattice.k0)
+    WI, VI, ev =  solve_structured_layer(lattice.k0, lattice.Kx, lattice.Ky, C)
+    S = build_scatmat(WI, VI, lattice.W0, lattice.V0, ev, depth, lattice.k0)
+    if return_eigenspace:
+        return S, ev, WI, VI
+    else:
+        return S
 
 def scattering_identity(pw):
     I = np.eye(prod(pw))
@@ -295,3 +306,15 @@ def scattering_identity(pw):
     ]).astype('complex')
     return SI
 
+
+def poynting_fluxes(lattice, c_output):
+    epsi=1
+    k0 = lattice.k0
+    #kzi = np.conj(csqrt(k0**2*epsi-kpinc[0]**2-kpinc[1]**2))
+    kzi = k0
+    sx, sy = np.split(c_output, 2)
+    kx, ky = lattice.kx, lattice.ky
+    kz = lattice.kz
+    sz = - (kx * sx + ky * sy) / kz
+    t = kz.real/k0 @ (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
+    return np.sum(t)
