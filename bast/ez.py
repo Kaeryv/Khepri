@@ -18,8 +18,8 @@ import numpy as np
 
 from .tools import incident, compute_fluxes
 from .tools import c
-from .scattering import scattering_matrix_islands
-from .lattice import CartesianLattice
+from .tmat.scattering import scattering_matrix_islands
+from .tmat.lattice import CartesianLattice
 
 with open(args.project, "r") as f:
     config = SimpleNamespace(**json.load(f))
@@ -168,7 +168,7 @@ def compute_spectrum(layers, materials, params, device):
 """
 
 
-from bast.scattering import scattering_interface
+from bast.tmat.scattering import scattering_interface
 import matplotlib.pyplot as plt
 
 def cuboid_data(o, size=(1,1,1)):

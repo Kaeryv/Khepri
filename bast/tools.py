@@ -188,38 +188,39 @@ def joint_subspace(submatrices: list, kind=0):
 
 from math import prod, floor
 from itertools import product
-def convolution_matrix(structure, harmonics, dtype=np.complex128):
-    if len(harmonics) == 2:
-        harmonics += (1,)
-    elif len(harmonics) == 1:
-        harmonics += (1,1)
-
+def convolution_matrix(structure, harmonics, dtype=np.complex128, fourier=False):
     convmat_dim = prod(harmonics)
     convmat_shape = convmat_dim, convmat_dim
     convmat = np.zeros(convmat_shape, dtype=dtype)
 
-    # Ensure shape of the structure array is 3D
-    if len(structure.shape) == 1:
-        structure = np.expand_dims(structure, (-2, -1))
-    elif len(structure.shape) == 2:
-        structure = np.expand_dims(structure, (-1))
+    Nx, Ny = structure.shape
+    P, Q = harmonics
 
-    Nx, Ny, Nz = structure.shape
-    P, Q, R = harmonics
+    g0 = np.array([floor(n/2) for n in (Nx, Ny)])
 
-    g0 = np.array([floor(n/2) for n in (Nx, Ny, Nz)])
-
-    gparkour = list(product(range(R), range(Q), range(P)))
-
-    fourier = np.fft.fftshift(np.fft.fftn(structure)) / prod(structure.shape)
-    for rrow, qrow, prow in gparkour:
-        row = rrow*Q*P + qrow*P + prow
-        for rcol, qcol, pcol in gparkour:
-            col = rcol*Q*P + qcol*P + pcol
-            gd = np.array([prow - pcol, qrow - qcol, rrow - rcol])
+    gparkour = list(product(range(Q), range(P)))
+    if fourier is False:
+        fourier = np.fft.fftshift(np.fft.fft2(structure)) / prod(structure.shape)
+    else:
+        fourier = structure.copy()
+    for qrow, prow in gparkour:
+        row = qrow*P + prow
+        for qcol, pcol in gparkour:
+            col = qcol*P + pcol
+            gd = np.array([prow - pcol, qrow - qcol])
             g = g0 + gd
+            convmat[row, col] = fourier[g[0], g[1]]
+    return convmat.astype("complex")
 
-            convmat[row, col] = fourier[g[0], g[1], g[2]]
-    return convmat
 
 
+def unitcellarea(a1, a2):
+    """ Returns the area given base vectors. """
+    return abs(a1[0] * a2[1] - a1[1] * a2[0])
+
+def reciproc(a1, a2):
+    """ Compute reciproc lattice basis vectors. """
+    coef = twopi / (a1[0] * a2[1] - a1[1] * a2[0])
+    b1 = (  a2[1] * coef, -a2[0] * coef)
+    b2 = ( -a1[1] * coef,  a1[0] * coef)
+    return b1, b2

@@ -18,6 +18,7 @@ from .tools import convolution_matrix
 from scipy.linalg import expm, eig
 from .tools import rotation_matrix
 from scipy.linalg import block_diag
+from .tools import unitcellarea
 
 
 def scat_base_transform(S, U):
@@ -41,52 +42,65 @@ def redheffer_product(SA, SB):
     return S
 
 def scattering_reflection(KX, KY, W0, V0):
+    N = len(KX)
     I = np.eye(KX.shape[0])
-    Pref = np.vstack([
-        np.hstack([KX @ KY,     I - KX @ KX]),
-        np.hstack([KY @ KY - I,    -KY @ KX]),
-    ])
+    # Pref = np.vstack([
+    #     np.hstack([KX @ KY,     I - KX @ KX]),
+    #     np.hstack([KY @ KY - I,    -KY @ KX]),
+    # ])
     Qref = np.vstack([
         np.hstack([KX @ KY,     I - KX @ KX]),
         np.hstack([KY @ KY - I,   - KY @ KX]),
     ])
-
+    arg = (I-KX**2-KY**2); #arg is kz^2
+    arg = np.diag(arg)
+    arg = arg.astype('complex')
+    Kz = np.conj(csqrt(arg))
+    eigenvals = np.hstack((1j*Kz, 1j*Kz))
+    Wref = np.identity(2*N)
     # Solve the eigen problem
-    eigenvals, Wref = np.linalg.eig(Pref @ Qref)
-
-    inv_lambda = np.diag(np.reciprocal(csqrt(eigenvals)))
-    Vref = Qref @ Wref @ inv_lambda
-    A = inv(W0) @ Wref + inv(V0) @ Vref
-    B = inv(W0) @ Wref - inv(V0) @ Vref
-    S11 = -inv(A) @ B
+    # eigenvals, Wref = np.linalg.eig(Pref @ Qref)
+    # eigenvals = csqrt(eigenvals)
+    # inv_lambda = np.diag(np.reciprocal(eigenvals))
+    Vref = Qref / eigenvals
+    A = solve(W0, Wref) + solve(V0, Vref)
+    B = solve(W0, Wref) - solve(V0, Vref)
+    S11 = -solve(A, B)
     S12 = 2 * inv(A)
-    S21 = 0.5 * (A - B @ inv(A) @ B)
+    S21 = 0.5 * (A - B @ solve(A, B))
     S22 = B @ inv(A)
-    return np.array([[S11, S12], [S21, S22]]), Wref, Vref
+    return np.array([[S11, S12], [S21, S22]]), Wref, Vref, eigenvals
 
 
 def scattering_transmission(KX, KY, W0, V0):
+    N = len(KX)
     I = np.eye(KX.shape[0])
-    Pref = np.vstack([
-        np.hstack([KX @ KY,     I - KX @ KX]),
-        np.hstack([KY @ KY - I,    -KY @ KX]),
-    ])
+    # Pref = np.vstack([
+    #     np.hstack([KX @ KY,     I - KX @ KX]),
+    #     np.hstack([KY @ KY - I,    -KY @ KX]),
+    # ])
     Qref = np.vstack([
         np.hstack([KX @ KY,     I - KX @ KX]),
         np.hstack([KY @ KY - I,   - KY @ KX]),
     ])
     # Solve the eigen problem
-    eigenvals, Wref = np.linalg.eig(Pref @ Qref)
-
-    inv_lambda = np.diag(np.reciprocal(csqrt(eigenvals)))
-    Vref = Qref @ Wref @ inv_lambda
-    A = inv(W0) @ Wref + inv(V0) @ Vref
-    B = inv(W0) @ Wref - inv(V0) @ Vref
+    #eigenvals, Wref = np.linalg.eig(Pref @ Qref)
+    arg = (I-KX**2-KY**2); #arg is kz^2
+    arg = np.diag(arg)
+    arg = arg.astype('complex')
+    Kz = np.conj(csqrt(arg))
+    eigenvals = np.hstack((1j*Kz, 1j*Kz))
+    Wtrans = np.identity(2*N)
+    #eigenvals = csqrt(eigenvals)
+    #inv_lambda = np.diag(np.reciprocal(eigenvals))
+    Vtrans = Qref /eigenvals
+    A = solve(W0, Wtrans) + solve(V0, Vtrans)
+    B = solve(W0, Wtrans) - solve(V0, Vtrans)
     S11 = B @ inv(A) 
-    S12 = 0.5 * (A - B @ inv(A) @ B)
+    S12 = 0.5 * (A - B @ solve(A, B))
     S21 = 2 * inv(A)
-    S22 = - inv(A) @ B
-    return np.array([[S11, S12], [S21, S22]]), Wref, Vref, eigenvals
+    S22 = - solve(A, B)
+    return np.array([[S11, S12], [S21, S22]]), Wtrans, Vtrans, eigenvals
 
 def free_space_eigenmodes(KX, KY):
     '''
@@ -100,9 +114,9 @@ def free_space_eigenmodes(KX, KY):
         ])
     lam_squared, W0 = np.linalg.eig(P@P)
     lam = csqrt(lam_squared)
-    #mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
-    #np.negative(lam, where=mask, out=lam)
-    V0 = P @ W0 / lam # P=Q
+    mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
+    np.negative(lam, where=mask, out=lam)
+    #V0 = P @ W0 / lam # P=Q
     '''
     '''
         Analytic method
@@ -112,14 +126,15 @@ def free_space_eigenmodes(KX, KY):
     P = np.block([[KX*KY, I-KX**2], [KY**2-I, -KY*KX]])
     Q = P
     W = np.identity(2*N)
-    arg = (I-KX**2-KY**2); #arg is +kz^2
-    arg = arg.astype('complex');
-    Kz = np.conj(np.sqrt(arg)); #conjugate enforces the negative sign convention (we also have to conjugate er and mur if they are complex)
-    eigenvalues = block_diag(1j*Kz, 1j*Kz) #determining the modes of ex, ey... so it appears eigenvalue order MATTERS...
-    V = Q @ np.linalg.inv(eigenvalues); #eigenvalue order is arbitrary (hard to compare with matlab
+    arg = (I-KX**2-KY**2); #arg is kz^2
+    arg = arg.astype('complex')
+    arg = np.diag(arg)
+    Kz = np.conj(csqrt(arg)); #conjugate enforces the negative sign convention (we also have to conjugate er and mur if they are complex)
+    eigenvalues = np.hstack((1j*Kz, 1j*Kz))
+    mask = np.logical_or(eigenvalues.imag < 0.0, np.logical_and(np.isclose(eigenvalues.imag, 0.0), eigenvalues.real < 0.0))
+    np.negative(eigenvalues, where=mask, out=eigenvalues)
+    V = Q / eigenvalues; #eigenvalue order is arbitrary (hard to compare with matlab
     return W,V
-
-    #return W0, V0
 
 def kz_from_kplanar(kx, ky, k0, epsilon):
     arg = k0**2*epsilon-kx**2-ky**2
@@ -137,16 +152,16 @@ def generate_expansion_vectors(pw, a):
     gx = 2 * pi * m / a
     gy = 2 * pi * m / a
     gx, gy = np.meshgrid(gx, gy)
-    return - gx.flatten(),  - gy.flatten()
+    return - gx.flatten().astype(np.complex128),  - gy.flatten().astype(np.complex128)
 
 class Lattice:
-    def __init__(self, pw, a,  wavelength, kp=(0,0), rotation=0, compute_eigenmodes=True):
+    def __init__(self, pw, a,  wavelength, kp=(0,0), rotation=0, compute_eigenmodes=True, eps_incident=1.0, truncate=False):
         self.pw = pw
         self.kp = kp
         self.k0 = 2 * pi / wavelength
-        self.epsi = 1
-
+        self.a = a
         self.gx, self.gy = generate_expansion_vectors(pw, a)
+        self.eps_incident = eps_incident
 
         if rotation != 0:
             R = rotation_matrix(rotation)
@@ -158,7 +173,17 @@ class Lattice:
         
         self.kx, self.ky = kp[0] + self.gx, kp[1] + self.gy
 
-        self.kz = kz_from_kplanar(self.kx, self.ky, self.k0, self.epsi)
+        if truncate:
+            mx, my = self.gx / 2/np.pi*a, self.gy / 2/np.pi*a
+            M = (pw[0] - 1) // 2
+            self.trunctation = (mx**2+my**2) <= M**2
+        else:
+            self.trunctation = np.ones_like(self.kx, dtype=bool)
+
+        self.kx = self.kx[self.trunctation]
+        self.ky = self.ky[self.trunctation]
+
+        self.kz = kz_from_kplanar(self.kx, self.ky, self.k0, self.eps_incident)
 
         # Normalize wrt k0 (magnitude of incident k-vector) and create matrices
         self.Kx = np.diag(self.kx / self.k0) 
@@ -194,7 +219,7 @@ class Lattice:
         l.kx, l.ky = self.kp[0] + l.gx, self.kp[1] + l.gy
 
 
-        l.kz = kz_from_kplanar(l.kx, l.ky, l.k0, self.epsi)
+        l.kz = kz_from_kplanar(l.kx, l.ky, l.k0, self.eps_incident)
 
         # Normalize wrt k0 (magnitude of incident k-vector) and create matrices
         l.Kx = np.diag(l.kx / l.k0) 
@@ -204,6 +229,10 @@ class Lattice:
         # Eigen modes of free space
         l.W0, l.V0 = free_space_eigenmodes(l.Kx, l.Ky)
         return l
+    
+    @property
+    def area(self):
+        return unitcellarea((self.a,0), (0, self.a))
 
 
 def incident(pw, p_pol, s_pol, kp):
@@ -232,8 +261,8 @@ def solve_uniform_layer(Kx, Ky, er, m_r = 1):
         Computes P & Q matrices for homogeneous layer.
     '''
     N = len(Kx);
-    I = np.identity(N)
-    P = (er**-1) * np.block(
+    I = np.identity(N, dtype=np.complex128)
+    P = (1/er) * np.block(
         [
             [ Kx * Ky,              er * m_r * I - Kx**2 ], 
             [ Ky**2 - m_r * er * I, - Ky * Kx ]
@@ -242,35 +271,42 @@ def solve_uniform_layer(Kx, Ky, er, m_r = 1):
     W = np.identity(2*N)
     arg = (m_r*er*I-Kx**2-Ky**2)
     arg = arg.astype('complex')
-    Kz = np.conj(np.sqrt(arg))
-    eigenvalues = block_diag(1j*Kz, 1j*Kz)
-    # eigenvalues check if diagonal -> change inv to 1/x
-    V = Q @ np.linalg.inv(eigenvalues)
+    Kz = np.conj(csqrt(np.diag(arg)))
+    eigenvalues = np.hstack((1j*Kz, 1j*Kz))
+    mask = np.logical_or(eigenvalues.imag < 0.0, np.logical_and(np.isclose(eigenvalues.imag, 0.0), eigenvalues.real < 0.0))
+    np.negative(eigenvalues, where=mask, out=eigenvalues)
+    V = Q / eigenvalues
+
     return W, V, eigenvalues
 
-def solve_structured_layer(k0, KX, KY, C):
-    I = np.eye(KX.shape[0])
+def solve_structured_layer(KX, KY, C, IC):
+    #KX = np.diag(kx)
+    #KY = np.diag(ky)
+    
+    I = np.eye(KX.shape[0], dtype=np.longdouble)
     Pi = np.vstack([
         np.hstack([KX @ solve(C, KY),     I - KX @ solve(C, KX)]),
         np.hstack([KY @ solve(C, KY) - I,   - KY @ solve(C, KX)]),
-    ]).astype('complex')
+    ]).astype(np.complex128)
     Qi = np.vstack([
         np.hstack([KX @ KY,     C - KX @ KX]),
         np.hstack([KY @ KY - C,   - KY @ KX]),
-    ]).astype('complex')
+    ]).astype(np.complex128)
     
     lam2i, WI = np.linalg.eig(Pi @ Qi)
-    lam = np.sqrt(lam2i) # changed from np.sqrt()
-    lam = np.where(np.imag(lam) < 0, -lam, lam)
+    lam = np.sqrt(lam2i+0j) # changed from np.sqrt()
+    #lam = np.where(np.imag(lam) < 0, -lam, lam)
+    #mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
+    #np.negative(lam, where=mask, out=lam)
     VI = Qi @ WI / lam
-    return WI, VI, np.diag(lam)
+    return WI, VI, lam
 
-def build_scatmat(WI, VI, W0, V0, lambdas, dlayer, k0):
+def build_scatmat(WI, VI, W0, V0, lambdas, dbar, k0):
     t1 = solve(WI, W0)
     t2 = solve(VI, V0)
     A = t1 + t2
     B = t1 - t2
-    X = np.diag(np.exp(-k0*np.diag(lambdas)*dlayer))
+    X = np.diag(np.exp(-lambdas*dbar*k0))
 
     # Build the transfer matrix
     T = A - X @ B @ solve(A, X) @ B
@@ -282,28 +318,36 @@ def build_scatmat(WI, VI, W0, V0, lambdas, dlayer, k0):
     return np.array([[S11, S12], [S21, S22]])
 
 def scattering_uniform_layer(lattice, eps_layer, depth, return_eigenspace=False):
-    WI, VI, ev =  solve_uniform_layer(lattice.Kx, lattice.Ky, eps_layer)
-    S = build_scatmat(WI, VI, lattice.W0, lattice.V0, ev, depth, lattice.k0)
+    WI, VI, LI =  solve_uniform_layer(lattice.Kx, lattice.Ky, eps_layer)
+    S = build_scatmat(WI, VI, lattice.W0, lattice.V0, LI, depth, lattice.k0)
     if return_eigenspace:
-        return S, ev, WI
+        return S, LI, WI, VI
     else:
         return S
 
 def scattering_structured_layer(lattice, epsilon_map, depth, return_eigenspace=False):
     C = convolution_matrix(epsilon_map, lattice.pw)
-    WI, VI, ev =  solve_structured_layer(lattice.k0, lattice.Kx, lattice.Ky, C)
+    IC = convolution_matrix(1/epsilon_map, lattice.pw)
+
+    WI, VI, ev =  solve_structured_layer(lattice.Kx, lattice.Ky, C, IC)
     S = build_scatmat(WI, VI, lattice.W0, lattice.V0, ev, depth, lattice.k0)
     if return_eigenspace:
         return S, ev, WI, VI
     else:
         return S
 
-def scattering_identity(pw):
-    I = np.eye(prod(pw))
-    SI = np.vstack([
-        np.hstack([np.zeros_like(I), I]),
-        np.hstack([I, np.zeros_like(I)]),
-    ]).astype('complex')
+def scattering_identity(pw, block=False):
+    I = np.eye(2*prod(pw))
+    if block:
+        SI = SI = np.asarray([
+            [np.zeros_like(I), I],
+            [I, np.zeros_like(I)],
+        ]).astype('complex')
+    else:
+        SI = np.vstack([
+            np.hstack([np.zeros_like(I), I]),
+            np.hstack([I, np.zeros_like(I)]),
+        ]).astype('complex')
     return SI
 
 
