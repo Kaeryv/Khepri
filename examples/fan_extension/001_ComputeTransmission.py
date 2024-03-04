@@ -21,10 +21,10 @@ import os
 os.makedirs(args.workdir, exist_ok=True)
 
 from bast.misc import str2linspace_args as linspace_args
-from bast.matrices import multS
-from bast.lattice import CartesianLattice
+from bast.tmat.matrices import multS
+from bast.tmat.lattice import CartesianLattice
 from bast.tools import incident, c, compute_currents
-from bast.scattering import scattering_air_tmp
+from bast.tmat.scattering import scattering_air_tmp
 
 from itertools import product
 import numpy as np
@@ -50,7 +50,7 @@ from bast.tools import joint_subspace
 
 # incident wave with polarization 1+1j
 pin = incident((pw[0]**2, pw[1]**2), E0=1./np.sqrt(2), p_pol=1, s_pol=0)
-from bast.scattering import scattering_matrix
+from bast.tmat.scattering import scattering_matrix
 import shutil
 transmission = np.zeros((len(list(range(*args.range)))))
 for i in range(*args.range):

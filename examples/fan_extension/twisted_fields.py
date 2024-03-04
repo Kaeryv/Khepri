@@ -45,6 +45,7 @@ def get_interlayer_smatrix(l):
 
 def matrix_r(Ws, Vs, mode):
     return block_split(joint_subspace([np.block([[w, w],[-v, v]]) for w, v in zip(Ws, Vs)], mode))
+
 def forall_gs(pw, a, wl, alpha, gs, mode=None, interlayer=False):
     Ss = list()
     W0s = list()

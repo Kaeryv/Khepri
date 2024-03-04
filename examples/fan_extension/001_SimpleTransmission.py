@@ -22,9 +22,9 @@ args = parser.parse_args()
 assert len(args.pw) == 2
 assert args.a > 0.0
 from bast.tools import incident, c, compute_currents
-from bast.matrices import multS
+from bast.tmat.matrices import multS
 # We need the twisted and untwisted lattices
-from bast.lattice import CartesianLattice
+from bast.tmat.lattice import CartesianLattice
 import numpy as np
 import os
 
@@ -37,9 +37,9 @@ disk_params = [ x*a, y*a, r*a] # Disk parameters [m]
 eps_emergent = args.eps_emergent
 eps_incident = args.eps_incident
 
-from bast.scattering import scattering_air_tmp, scattering_interface, scattering_matrix
+from bast.tmat.scattering import scattering_air_tmp, scattering_interface, scattering_matrix
 from bast.tools import c
-from  bast.matrices import matrix_s
+from  bast.tmat.matrices import matrix_s
 
 l = CartesianLattice(pw, (a, 0), (0., a), eps_incident, eps_emergent, dtype=np.float32)
 

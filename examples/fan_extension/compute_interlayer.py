@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 
-from bast.scattering import scattering_matrix
+from bast.tmat.scattering import scattering_matrix
 parser = ArgumentParser()
 parser.add_argument("-input", type=str, required=True)
 parser.add_argument("-range", type=int, nargs="+", required=True)
@@ -27,7 +27,7 @@ def str2val(string):
 
 import numpy as np
 
-from bast.lattice import CartesianLattice
+from bast.tmat.lattice import CartesianLattice
 from bast.tools import incident, c
 
 from itertools import product

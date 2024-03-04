@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from bast.lattice import CartesianLattice
+from bast.tmat.lattice import CartesianLattice
 from bast.tools import incident
 pw = (3,3)
 a = 2 * np.pi

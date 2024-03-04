@@ -1,5 +1,5 @@
-from bast.scattering import scattering_matrix
-from bast.lattice import CartesianLattice
+from bast.tmat.scattering import scattering_matrix
+from bast.tmat.lattice import CartesianLattice
 from bast.fourier import transform
 import matplotlib.pyplot as plt
 import numpy as np

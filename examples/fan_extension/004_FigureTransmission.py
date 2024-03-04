@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 
-from bast.scattering import scattering_matrix
+from bast.tmat.scattering import scattering_matrix
 from PIL import Image
 parser = ArgumentParser()
 parser.add_argument("-figname", type=str, required=True)

@@ -24,7 +24,7 @@ assert len(args.pw) == 2
 assert args.a > 0.0
 
 # We need the twisted and untwisted lattices
-from bast.lattice import CartesianLattice
+from bast.tmat.lattice import CartesianLattice
 import numpy as np
 import os
 
@@ -39,9 +39,9 @@ eps_emergent = args.eps_emergent
 eps_incident = args.eps_incident
 
 
-from bast.scattering import scattering_matrix, scattering_interface
+from bast.tmat.scattering import scattering_matrix, scattering_interface
 from bast.tools import c
-from bast.matrices import multS
+from bast.tmat.matrices import multS
 
 def get_smatrix(lattice, wavelength, kpoint):
     '''
