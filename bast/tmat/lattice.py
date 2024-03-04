@@ -1,0 +1,217 @@
+from ..tools import compute_eta, compute_kplanar, grid_size, grid_center
+from ..tools import compute_mu, compute_kz, rotation_matrix, reciproc, unitcellarea
+from .matrices import matrix_u, matrix_v
+from ..constants import *
+import numpy as np
+from numpy.lib.stride_tricks import as_strided
+from typing import Tuple, NewType
+from numpy.typing import NDArray
+
+
+complex_dtype = { np.float32: np.complex64, np.float64: np.complex128 }
+
+"""
+Lattice class
+
+    This class is used to store the lattice parameters and 
+    the reciprocal lattice vectors.
+
+    The information about the incidence and emergence media is also stored
+    The class provides methods to compute the polarization basis transformation
+"""
+
+IntPair = Tuple[int, int]
+FloatPair = Tuple[float, float]
+Matrix = NDArray
+Degrees = float
+
+
+
+
+def gvectors(b1, b2, shape: IntPair, dtype=np.float32):
+    cx, cy = grid_center(shape)
+    m1 = np.arange(shape[0], dtype=dtype) - cx
+    m2 = np.arange(shape[1], dtype=dtype) - cy
+    gx = np.add.outer(b1[0] * m1, b2[0] * m2)
+    gy = np.add.outer(b1[1] * m1, b2[1] * m2)
+    return gx, gy
+
+class CartesianLattice:
+    def __init__(self, 
+            pw: IntPair, a1: FloatPair, a2: FloatPair, 
+            eps_incid: float=1.0, eps_emerg: float=1.0, dtype=np.float32):
+
+        b1, b2 = reciproc(a1, a2)
+        self.a1 = a1
+        self.a2 = a2
+        self.b1 = b1
+        self.b2 = b2
+        self.n, self.q = grid_size(pw)
+        self.Gx, self.Gy = gvectors(b1, b2, self.q, dtype=dtype)
+        self.area = unitcellarea(a1, a2)
+        self.eps_incid = eps_incid
+        self.eps_emerg = eps_emerg
+        self.eta_ = None
+
+        self.dtype = dtype
+        self.pw = pw
+
+    @property
+    def nx(self):
+        return (self.q[0] // 4, (self.q[0] - 1) // 4)[self.q[0] % 2]
+    
+    @property
+    def ny(self):
+        return (self.q[1] // 4, (self.q[1] - 1) // 4)[self.q[1] % 2]
+    
+    @property
+    def gx(self):
+        """
+        The x-component of the reciprocal lattice vectors
+        """
+        nx, ny = self.nx, self.ny
+        return self.Gx[nx:self.q[0]-nx, ny:self.q[0]-ny]
+
+    @gx.setter
+    def gx(self, v):
+        nx, ny = self.nx, self.ny
+        self.Gx[nx:self.q[0]-nx, ny:self.q[0]-ny] = v  
+    @property
+    def gy(self):
+        """
+        The y-component of the reciprocal lattice vectors
+        """
+        nx, ny = self.nx, self.ny
+        return self.Gy[nx:self.q[0]-nx, ny:self.q[0]-ny]
+    @gy.setter
+    def gy(self, v):
+        nx, ny = self.nx, self.ny
+        self.Gy[nx:self.q[0]-nx, ny:self.q[0]-ny] = v
+    @property
+    def eta_normal(self):
+        """
+        Eta for normal incidence
+        """
+        if self.eta_ is None:
+            self.eta_ = compute_eta(self.gx, self.gy)
+        return self.eta_
+     
+    def eta(self, wavelength, kp):
+        """
+        Eta for a given angle and wavelength
+        """
+        return compute_eta(self.gx, self.gy, kp=kp)
+
+    
+    def kp_angle(self, wavelength, theta_deg, phi_deg):
+        """
+        The planar wavevector
+        """
+        return compute_kplanar(self.eps_incid, wavelength, theta_deg, phi_deg)
+
+    def kzi(self, wavelength, kp):
+        """
+        The incident wavevector
+        """
+        return compute_kz(self.gx, self.gy, self.eps_incid, wavelength, kp, complex_dtype[self.dtype])
+
+    def kze(self, wavelength, kp):
+        """
+        The emergent wavevector
+        """
+        return compute_kz(self.gx, self.gy, self.eps_emerg, wavelength, kp, complex_dtype[self.dtype])
+
+    def mugi(self, wavelength, kp):
+        return compute_mu(self.gx, self.gy, self.kzi(wavelength, kp), self.eps_incid, wavelength, kp)
+
+    def muge(self, wavelength, kp):
+        return compute_mu(self.gx, self.gy, self.kze(wavelength, kp), self.eps_emerg, wavelength, kp)
+
+    def U(self, wavelength: float, kp: FloatPair) -> Matrix:
+        """
+        The polarization basis transformation matrix
+        """
+        return matrix_u(self.kzi(wavelength, kp), 
+            self.eta(wavelength, kp), 
+            self.mugi(wavelength, kp), 
+            self.eps_incid, wavelength,
+            complex_dtype[self.dtype])
+    
+    def Vi(self, wavelength: float, kp: FloatPair) -> Matrix:
+        """
+        The polarization basis transformation matrix
+        """
+        return matrix_v(
+            self.eta(wavelength, kp), 
+            self.mugi(wavelength, kp),
+            self.eps_incid, 
+            complex_dtype[self.dtype])
+
+    def Ve(self, wavelength, kp):
+        """
+        The polarization basis transformation matrix
+        """
+        return matrix_v(
+            self.eta(wavelength, kp), 
+            self.muge(wavelength, kp),
+            self.eps_emerg, 
+            complex_dtype[self.dtype])
+
+    def bz_path(self, k_points, resolutions=[], a=1.0):
+        main_k_points = { 'G': (0, 0), 'X': (0, 0.99*np.pi /a ), 'M': (0.99*np.pi/a, 0.99*np.pi/a) }
+        # Return a path of Bz vectors
+        assert len(k_points) > 1, "Give at least two k-points"
+        if len(resolutions) == 0:
+            resolutions = [10]*(len(k_points)-1)
+        elif len(resolutions) == 1:
+            resolutions = [resolutions[0]]*(len(k_points)-1)
+        assert len(resolutions) == len(k_points)-1, "Give resolution for each interval between k-points"
+
+        traj = []
+        for i in range(len(resolutions)):
+            start = main_k_points[k_points[i]]
+            stop = main_k_points[k_points[i+1]]
+            for j in range(resolutions[i]):
+                traj.append(np.array([start[0] + (stop[0] - start[0])*j/resolutions[i], start[1] + (stop[1] - start[1])*j/resolutions[i]]))
+
+        return traj
+    
+    def g_vectors(self):
+        """ Generator for getting gvectors one by one in C order. """
+        g  = np.stack((self.gx.real.flat, self.gy.real.flat), axis=0).T
+        for i in range(len(g)):
+            yield g[i]
+    def G_vectors(self):
+        g  = np.stack((self.Gx.real.flat, self.Gy.real.flat), axis=0).T
+        for i in range(len(g)):
+            yield g[i]
+
+    def rotate(self, angle_deg: Degrees):
+        """ Rotate the lattice by angle_deg degrees. """
+        angle = np.deg2rad(angle_deg)
+        G_orig = np.array(list(self.G_vectors()))
+        R = rotation_matrix(angle)
+        G_rotated = R @ G_orig.T
+        self.Gx = G_rotated[0].reshape(self.Gx.shape)
+        self.Gy = G_rotated[1].reshape(self.Gy.shape)
+
+    def __add__(self, rhs):
+        pw = self.gx.shape
+        g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=complex_dtype[self.dtype])
+        
+        g2 = np.array(list(rhs.g_vectors()))
+        for i, g1 in enumerate(self.g_vectors()):
+            g[i, :, :] = g1.reshape(1, 2) + g2
+        
+        l = CartesianLattice((self.pw[0]**2, self.pw[1]**2), self.a1, self.a2, 1.0, 1.0, dtype=self.dtype)
+        l.gx = g[:, :, 0]
+        l.gy = g[:, :, 1]
+        return l
+
+    def restrict_radius_mask(self, radius):
+        Gs = np.array(list(self.g_vectors()))
+        return np.linalg.norm(Gs, axis=-1) < radius
+
+
+
+
