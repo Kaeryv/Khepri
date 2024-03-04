@@ -5,8 +5,8 @@
 import unittest
 
 from bast.tools import nanometers
-from bast.matrices import multS
-from bast.lattice import CartesianLattice
+from bast.tmat.matrices import multS
+from bast.tmat.lattice import CartesianLattice
 import numpy as np
 from scipy.io import loadmat
 from numpy.testing import assert_allclose
@@ -101,7 +101,7 @@ class TestVeins(unittest.TestCase):
         boolean_field = transform("rectangle", [veins * a, veins*a, a*(1-veins), a  *(1-veins) ],  lattice.Gx, lattice.Gy, lattice.area)
         data = loadmat(f"{fixtures}/S.mat")
         
-        from bast.matrices import matrix_a, matrix_s
+        from bast.tmat.matrices import matrix_a, matrix_s
         from scipy.linalg import expm
         _, q = grid_size(pw)
         epsg = epsilon_g(q, [(boolean_field, 1.0)], 8.9)

@@ -4,9 +4,9 @@ import unittest
 import pickle
 
 from bast.tools import nanometers, coords_from_index
-from bast.matrices import multS
-from bast.lattice import CartesianLattice
-from bast.scattering import scattering_matrix
+from bast.tmat.matrices import multS
+from bast.tmat.lattice import CartesianLattice
+from bast.tmat.scattering import scattering_matrix
 from bast.fourier import transform
 from bast.eigentricks import scattering_splitlr, scattering_det
 from tqdm import tqdm
@@ -108,7 +108,7 @@ class TestCylinder2(unittest.TestCase):
         boolean_field = transform("disc", [0.5*a, 0.5*a, 0.2*a], lattice.Gx, lattice.Gy, lattice.area)
         data = loadmat(f"{fixtures}/S.mat")
         
-        from bast.matrices import matrix_a, matrix_s
+        from bast.tmat.matrices import matrix_a, matrix_s
         from scipy.linalg import expm
         _, q = grid_size(pw)
         epsg = epsilon_g(q, [(boolean_field, 8.9)], 1.0)

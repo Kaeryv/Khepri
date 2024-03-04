@@ -1,8 +1,8 @@
 import unittest
 
 from bast.tools import nanometers, coords_from_index
-from bast.matrices import multS
-from bast.lattice import CartesianLattice
+from bast.tmat.matrices import multS
+from bast.tmat.lattice import CartesianLattice
 import numpy as np
 from scipy.io import loadmat
 from numpy.testing import assert_allclose
@@ -95,7 +95,7 @@ class TestCylinder(unittest.TestCase):
         boolean_field = transform("disc", [0.5*a, 0.5*a, 0.2*a], lattice.Gx, lattice.Gy, lattice.area)
         data = loadmat(f"{fixtures}/S.mat")
         
-        from bast.matrices import matrix_a, matrix_s
+        from bast.tmat.matrices import matrix_a, matrix_s
         from scipy.linalg import expm
         _, q = grid_size(pw)
         epsg = epsilon_g(q, [(boolean_field, 8.9)], 1.0)

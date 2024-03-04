@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 
 from bast.tools import nanometers
-from bast.lattice import CartesianLattice
-from bast.scattering import scattering_matrix
+from bast.tmat.lattice import CartesianLattice
+from bast.tmat.scattering import scattering_matrix
 import numpy as np
 from scipy.io import loadmat
 from numpy.testing import assert_allclose
