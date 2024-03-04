@@ -22,7 +22,7 @@ class Formulation(IntEnum):
     ANALYTICAL = 2
 
 class Crystal():
-    def __init__(self, pw, a=1) -> None:
+    def __init__(self, pw, a=1, void=False) -> None:
         self.layers = dict()
         self.stacking = []
         self.layer_matrices = dict()
@@ -31,6 +31,8 @@ class Crystal():
         self.stack_positions = []
         self.pw = pw
         self.a = a
+        self.void = void
+        self.global_rotation = 0
 
 
     def add_layer_pixmap(self, name, epsilon, depth):
@@ -49,9 +51,12 @@ class Crystal():
         self.global_stacking.extend(stack)
         self.global_stacking.append("Strans")
 
+    def get_lattice(self, wl, kp):
+        return Lattice(self.pw, self.a, wl, kp, rotation=self.global_rotation)
+
     def solve(self):
         required_layers = set(self.stacking)
-        lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp)
+        lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp, rotation=self.global_rotation)
         for name in required_layers:
             current = self.layers[name]
             if current.formulation == Formulation.DFT:
@@ -91,14 +96,20 @@ class Crystal():
         Ky = lattice.Ky
         W0 = lattice.W0
         V0 = lattice.V0
-        Sref, Wref, Vref, Lref = scattering_reflection(Kx, Ky, W0, V0)
-        self.layer_eigenspace["Sref"] = SimpleNamespace(W=Wref, V=Vref, L=Lref)
-        self.layers["Sref"] = SimpleNamespace(name=name, depth=0.0, epsilon_host=1.0, formulation=Formulation.UNIFORM)
-        Stot = Sref.copy()
+
         self.stack_positions.clear()
         self.stacking_matrices.clear()
-        self.stack_positions.append(-np.inf)
-        self.stacking_matrices.append(Stot.copy())
+        
+        if not self.void:
+            Sref, Wref, Vref, Lref = scattering_reflection(Kx, Ky, W0, V0)
+            self.layer_eigenspace["Sref"] = SimpleNamespace(W=Wref, V=Vref, L=Lref)
+            self.layers["Sref"] = SimpleNamespace(name=name, depth=0.0, epsilon_host=1.0, formulation=Formulation.UNIFORM)
+            # Add incidence medium at -inf position.
+            Stot = Sref.copy()
+            self.stack_positions.append(-np.inf)
+            self.stacking_matrices.append(Stot.copy())
+        else:
+            Stot = scattering_identity(self.pw, block=True)
 
         self.stack_positions.append(0)
         for name in self.stacking:
@@ -106,15 +117,20 @@ class Crystal():
             self.stacking_matrices.append(Stot.copy())
             self.stack_positions.append(self.stack_positions[-1] + self.layers[name].depth)
             
-        Strans, Wtrans, Vtrans, Ltrans = scattering_transmission(Kx, Ky, W0, V0)
-        self.layer_eigenspace["Strans"] = SimpleNamespace(W=Wtrans, V=Vtrans, L=Ltrans)
-        Stot = redheffer_product(Stot, Strans)
+        if not self.void:
+            Strans, Wtrans, Vtrans, Ltrans = scattering_transmission(Kx, Ky, W0, V0)
+            self.layer_eigenspace["Strans"] = SimpleNamespace(W=Wtrans, V=Vtrans, L=Ltrans)
+            Stot = redheffer_product(Stot, Strans)
+        
         self.Stot = Stot
-        print("Stot cond", np.linalg.cond(Stot[1,0]))
 
         # Create the reverse stacking
-        Srev = Strans.copy()
-        self.stacking_reverse_matrices = [ Srev ]
+        if not self.void:
+            Srev = Strans.copy()
+            self.stacking_reverse_matrices = [ Srev ]
+        else:
+            Srev = scattering_identity(self.pw, block=True)
+            self.stacking_reverse_matrices = list()
         for name in reversed(self.stacking):
             Srev = redheffer_product(self.layer_matrices[name], Srev)
             self.stacking_reverse_matrices.append(Srev.copy())
@@ -142,10 +158,10 @@ class Crystal():
         WI = self.layer_eigenspace[layer_name].W
         VI = self.layer_eigenspace[layer_name].V
 
-        lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp)
+        lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp, rotation=self.global_rotation)
         Wref = self.layer_eigenspace["Sref"].W
         iWref = np.linalg.inv(Wref)
-        c1p = iWref @ incident(self.pw, self.source.te, self.source.tm, kp=(self.kp[0], self.kp[1], self.kzi))[np.tile(lattice.trunctation,2)]
+        c1p = iWref @ incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))[np.tile(lattice.trunctation,2)]
         c1m = self.Stot[0,0] @ c1p
         c2p = self.Stot[1,0] @ c1p
         cdplus, cdminus = translate_mode_amplitudes2(self.stacking_matrices[layer_index], self.stacking_reverse_matrices[layer_index], c1p, c1m,c2p)
@@ -168,7 +184,8 @@ class Crystal():
             grid[lattice.trunctation] = s
             return grid.reshape(pw)
 
-        ex, ey, ez, hx, hy, hz = [ fourier2direct(s2grid(s, self.pw), self.a, kp=self.kp) for s in [sx, sy, sz, ux, uy, uz]]
+        #ex, ey, ez, hx, hy, hz = [ fourier2direct(s2grid(s, self.pw), self.a, kp=self.kp) for s in [sx, sy, sz, ux, uy, uz]]
+        ex, ey, ez, hx, hy, hz = [ fourier2direct2(s2grid(s, self.pw), lattice.kx, lattice.ky, self.a) for s in [sx, sy, sz, ux, uy, uz]]
         E = ex, ey, ez
         H = hx, hy, hz
         
@@ -184,12 +201,21 @@ class Crystal():
         return fields[:,0, :, :, :], fields[:,1, :, :, :]
 
     
-    def set_source(self, te, tm, theta, phi, wavelength):
-        self.source = SimpleNamespace(te=te, tm=tm, theta=theta, phi=phi, wavelength=wavelength)
+    def set_source(self, wavelength, te=1.0, tm=1.0, theta=0.0, phi=0.0, kp=None):
         eps_inc = 1.0
-        self.kp = kxi, kyi = compute_kplanar(eps_inc, wavelength, self.source.theta, self.source.phi)
+        if kp is not None:
+            self.kp = kxi, kyi = kp
+            self.source = SimpleNamespace(te=te, tm=tm, theta=theta, phi=phi, wavelength=wavelength)
+        else:
+            self.source = SimpleNamespace(te=te, tm=tm, theta=theta, phi=phi, wavelength=wavelength)
+            self.kp = kxi, kyi = compute_kplanar(eps_inc, wavelength, self.source.theta, self.source.phi)
+        
         self.k0 = 2 * np.pi / wavelength
         self.kzi = self.k0 #np.conj(csqrt(self.k0**2 * eps_inc-kxi**2 - kyi**2))
+
+    def rotate_deg(self, alpha):
+        self.global_rotation = np.deg2rad(alpha)
+    
 
     def poynting_flux_end(self):
         lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp)

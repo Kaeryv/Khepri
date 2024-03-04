@@ -85,7 +85,7 @@ def fourier2direct2(ffield, kx, ky, a, target_resolution=(127,127)):
     uxy_x = np.outer(ux, xy[:,:,0]).reshape(ng, *target_resolution)
     uxy_y = np.outer(uy, xy[:,:,1]).reshape(ng, *target_resolution)
     fxy = np.exp(1j*(uxy_x+uxy_y))
-    return np.sum(ffield.reshape(ng, 1, 1) * fxy, axis=0)
+    return np.sum(ffield.T.reshape(ng, 1, 1) * fxy, axis=0)
 
 def fourier_fields_from_mode_amplitudes(layer_eigenspace, freespace_eigenspace, mode_amplitudes, zbar):
     if isinstance(freespace_eigenspace, tuple) and len(freespace_eigenspace) == 3:

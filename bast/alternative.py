@@ -15,10 +15,10 @@ from numpy.linalg import inv, solve
 from cmath import pi
 from .constants import c
 from .tools import convolution_matrix
-from scipy.linalg import expm, eig
 from .tools import rotation_matrix
 from scipy.linalg import block_diag
 from .tools import unitcellarea
+import logging
 
 
 def scat_base_transform(S, U):
@@ -235,21 +235,28 @@ class Lattice:
         return unitcellarea((self.a,0), (0, self.a))
 
 
-def incident(pw, p_pol, s_pol, kp):
+def incident(pw, p_pol, s_pol, k_vector):
+    logging.debug(f"Building vector with plane wave {pw=}, {p_pol=}, {s_pol=}, {k_vector=}")
     # Normalize in pol basis
-    pol_norm = sqrt(np.abs(p_pol)**2 + abs(s_pol)**2)
+    pol_norm = np.linalg.norm((abs(p_pol), abs(s_pol)))
     p_pol /= pol_norm
     s_pol /= pol_norm
 
-    knorm = np.array(kp) / np.linalg.norm(kp)
+    kp = k_vector[0:2]
+    kpnorm = np.linalg.norm(kp)
+    knorm = np.linalg.norm(k_vector)
+    kbar = np.array(k_vector) / knorm
     deviceNormalUnitVector = np.array([0, 0, -1], dtype=np.complex128)
-    if abs(knorm[0]) < 1e-4:
+    if abs(kpnorm) < 1e-8:
         aTE = np.array([0,1,0])
+        aTM = np.array([1,0,0])
     else:
-        aTE = - np.cross(deviceNormalUnitVector, knorm)
-    aTE = aTE / np.linalg.norm(aTE)
-    aTM = np.cross(aTE, knorm)
-    aTM /= np.linalg.norm(aTM)
+        aTE = - np.cross(deviceNormalUnitVector, kbar)
+        aTE = aTE / np.linalg.norm(aTE)
+        aTM = np.cross(aTE, kbar)
+        aTM /= np.linalg.norm(aTM)
+
+    logging.debug(f"{aTM=}, {aTE=}, {kbar=}, {knorm=}")
     N = prod(pw)
     delta = np.zeros(N, dtype=np.complex128)
     delta[(N-1)//2] = 1
