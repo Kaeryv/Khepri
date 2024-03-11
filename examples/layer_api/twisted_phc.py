@@ -97,7 +97,7 @@ elif action == "map":
     plt.matshow(np.reshape(spectrum, (len(angles), len(freqs), 2))[:,:,1].T, vmin=0, vmax=1, origin="lower")
     np.savez_compressed("spectrum.npz", T=np.reshape(spectrum, (len(angles), len(freqs), 2))[:,:,1].T)
     plt.savefig("debug.png")
-
+'''
 elif action == "fields":
     assert(len(sys.argv)> 3)
     twist_angle = float(sys.argv[2])
@@ -115,4 +115,4 @@ elif action == "fields":
     ax2.matshow(Enorm[:, 64,:], cmap="hot")
     fig.savefig("Figures/twisted_fields.png")
 
-    
+'''
