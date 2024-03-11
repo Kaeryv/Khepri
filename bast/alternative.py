@@ -32,11 +32,11 @@ def redheffer_product(SA, SB):
     I = np.eye(SA[0,0].shape[0], dtype=np.complex128)
     D = I - SB[0,0] @ SA[1,1]
     F = I - SA[1,1] @ SB[0,0]
-    
-    S11 = SA[0, 0] + SA[0,1] @ solve(D, SB[0, 0]) @ SA[1, 0];
+
+    S11 = SA[0, 0] + SA[0,1] @ solve(D, SB[0, 0]) @ SA[1, 0]
     S12 = SA[0,1] @ solve(D, SB[0, 1])
     S21 = SB[1,0] @ solve(F, SA[1, 0])
-    S22 = SB[1, 1] + SB[1,0] @ solve(F, SA[1, 1]) @ SB[0, 1];
+    S22 = SB[1, 1] + SB[1,0] @ solve(F, SA[1, 1]) @ SB[0, 1]
     
     S = np.array([[S11, S12], [S21, S22]])
     return S
@@ -44,6 +44,8 @@ def redheffer_product(SA, SB):
 def scattering_reflection(KX, KY, W0, V0):
     N = len(KX)
     I = np.eye(KX.shape[0])
+    KX = np.diag(KX)
+    KY = np.diag(KY)
     # Pref = np.vstack([
     #     np.hstack([KX @ KY,     I - KX @ KX]),
     #     np.hstack([KY @ KY - I,    -KY @ KX]),
@@ -75,6 +77,8 @@ def scattering_reflection(KX, KY, W0, V0):
 def scattering_transmission(KX, KY, W0, V0):
     N = len(KX)
     I = np.eye(KX.shape[0])
+    KX = np.diag(KX)
+    KY = np.diag(KY)
     # Pref = np.vstack([
     #     np.hstack([KX @ KY,     I - KX @ KX]),
     #     np.hstack([KY @ KY - I,    -KY @ KX]),
@@ -103,25 +107,9 @@ def scattering_transmission(KX, KY, W0, V0):
     return np.array([[S11, S12], [S21, S22]]), Wtrans, Vtrans, eigenvals
 
 def free_space_eigenmodes(KX, KY):
-    '''
-        Full method
-    '''
-    '''
-    I = np.eye(KX.shape[0])
-    P = np.vstack([
-        np.hstack([KX @ KY, I - KX @ KX]),
-        np.hstack([KY @ KY - I, -KX @ KY]),
-        ])
-    lam_squared, W0 = np.linalg.eig(P@P)
-    lam = csqrt(lam_squared)
-    mask = np.logical_or(lam.imag < 0.0, np.logical_and(np.isclose(lam.imag, 0.0), lam.real < 0.0))
-    np.negative(lam, where=mask, out=lam)
-    #V0 = P @ W0 / lam # P=Q
-    '''
-    '''
-        Analytic method
-    '''
     N = len(KX)
+    KX = np.diag(KX)
+    KY = np.diag(KY)
     I = np.identity(N)
     P = np.block([[KX*KY, I-KX**2], [KY**2-I, -KY*KX]])
     Q = P
@@ -134,7 +122,7 @@ def free_space_eigenmodes(KX, KY):
     mask = np.logical_or(eigenvalues.imag < 0.0, np.logical_and(np.isclose(eigenvalues.imag, 0.0), eigenvalues.real < 0.0))
     np.negative(eigenvalues, where=mask, out=eigenvalues)
     V = Q / eigenvalues; #eigenvalue order is arbitrary (hard to compare with matlab
-    return W,V
+    return W, V
 
 def kz_from_kplanar(kx, ky, k0, epsilon):
     arg = k0**2*epsilon-kx**2-ky**2
@@ -267,6 +255,8 @@ def solve_uniform_layer(Kx, Ky, er, m_r = 1):
     '''
         Computes P & Q matrices for homogeneous layer.
     '''
+    Kx = np.diag(Kx)
+    Ky = np.diag(Ky)
     N = len(Kx);
     I = np.identity(N, dtype=np.complex128)
     P = (1/er) * np.block(
@@ -286,9 +276,9 @@ def solve_uniform_layer(Kx, Ky, er, m_r = 1):
 
     return W, V, eigenvalues
 
-def solve_structured_layer(KX, KY, C, IC):
-    #KX = np.diag(kx)
-    #KY = np.diag(ky)
+def solve_structured_layer(kx, ky, C):
+    KX = np.diag(kx)
+    KY = np.diag(ky)
     
     I = np.eye(KX.shape[0], dtype=np.longdouble)
     Pi = np.vstack([
@@ -307,6 +297,7 @@ def solve_structured_layer(KX, KY, C, IC):
     #np.negative(lam, where=mask, out=lam)
     VI = Qi @ WI / lam
     return WI, VI, lam
+
 
 def build_scatmat(WI, VI, W0, V0, lambdas, dbar, k0):
     t1 = solve(WI, W0)
@@ -358,14 +349,13 @@ def scattering_identity(pw, block=False):
     return SI
 
 
-def poynting_fluxes(lattice, c_output):
-    epsi=1
-    k0 = lattice.k0
-    #kzi = np.conj(csqrt(k0**2*epsi-kpinc[0]**2-kpinc[1]**2))
-    kzi = k0
+def poynting_fluxes(expansion, c_output, kp, wavelength):
+    #epsi=1
+    #k0 = lattice.k0
+    k0 = 2 * np.pi / wavelength
+    #kzi = 1 # np.conj(csqrt(k0**2*epsi-kpinc[0]**2-kpinc[1]**2))
     sx, sy = np.split(c_output, 2)
-    kx, ky = lattice.kx, lattice.ky
-    kz = lattice.kz
+    kx, ky, kz = expansion.k_vectors(kp, wavelength)
     sz = - (kx * sx + ky * sy) / kz
-    t = kz.real/k0 @ (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
+    t = kz.real @ (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
     return np.sum(t)

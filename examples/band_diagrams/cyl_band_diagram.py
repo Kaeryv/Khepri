@@ -16,9 +16,9 @@ args = parser.parse_args()
 import pickle
 
 from bast.tools import nanometers
-from bast.matrices import multS
-from bast.lattice import CartesianLattice
-from bast.scattering import scattering_matrix
+from bast.tmat.matrices import multS
+from bast.tmat.lattice import CartesianLattice
+from bast.tmat.scattering import scattering_matrix
 from bast.eigentricks import scattering_splitlr
 from tqdm import tqdm
 import numpy as np

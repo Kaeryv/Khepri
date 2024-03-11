@@ -1,7 +1,7 @@
 from numpy.linalg import inv, solve
 import numpy as np
 from scipy.linalg import block_diag
-
+from scipy.linalg import lu_factor, lu_solve
 '''
     Notice:
     Here, the convention is chosen as follows:
@@ -58,7 +58,7 @@ def translate_mode_amplitudes2(Sl, Sr, c1p, c1m, c2p):
 
 def compute_z_propagator(eigenvalues, zbar):
     arg = eigenvalues * zbar
-    return np.diag(np.exp(arg)), np.diag(np.exp(-arg))
+    return np.exp(arg), np.exp(-arg)
 
 
 def fourier2direct(ffield, a, target_resolution=(127,127), kp=(0,0)):
@@ -87,19 +87,30 @@ def fourier2direct2(ffield, kx, ky, a, target_resolution=(127,127)):
     fxy = np.exp(1j*(uxy_x+uxy_y))
     return np.sum(ffield.T.reshape(ng, 1, 1) * fxy, axis=0)
 
-def fourier_fields_from_mode_amplitudes(layer_eigenspace, freespace_eigenspace, mode_amplitudes, zbar):
-    if isinstance(freespace_eigenspace, tuple) and len(freespace_eigenspace) == 3:
-        W0, V0, _ = freespace_eigenspace
-        R0 = np.block([[W0, W0],[-V0,V0]])
-    else:
-        R0 = freespace_eigenspace
-    if isinstance(layer_eigenspace, tuple) and len(layer_eigenspace) == 3:
-        WI, VI, LI = layer_eigenspace
-        RI = np.block([[WI, WI],[-VI,VI]])
-    elif isinstance(layer_eigenspace, tuple) and len(layer_eigenspace) == 2:
-        RI, LI = layer_eigenspace
+def layer_eigenbasis_matrix(WI, VI):
+    '''
+        Matrix whose columns are the eigenmodes of the E (upper part) and H  (lower part) fields eigenmodes.
+        This matrix is used to go back and forth between the eigenmodes coefficients and fields spaces.
+    '''
+    return np.block([[WI, WI],[-VI,VI]])
 
-    L = block_diag(*compute_z_propagator(LI, zbar))
-    A = np.hstack(mode_amplitudes)
-    A = R0  @ A
-    return np.split(RI @ L @ solve(RI,  A), 4)
+def fourier_fields_from_mode_amplitudes(RI, LI, R0, mode_amplitudes, zbar):
+    '''
+        Computes the fields from the mode coefficients at specified z-location (depth).
+    '''
+    L = np.hstack(compute_z_propagator(LI, zbar))
+
+
+    return np.split(RI @  (L * solve(RI,  R0 @ np.hstack(mode_amplitudes))), 4)
+
+def fourier_fields_from_mode_amplitudes_lu(RI, LI, R0, mode_amplitudes, zbar, lu=None):
+    '''
+        Computes the fields from the mode coefficients at specified z-location (depth).
+        RI @ L @ inv(RI) @ R0 @ c
+        Using the LU decomposition strongly speeds up the process for different z depth.
+    '''
+    L = np.hstack(compute_z_propagator(LI, zbar))
+    if lu is None:
+        lu = lu_factor(RI)
+
+    return np.split(RI @ (L*lu_solve(lu,  R0 @ np.hstack(mode_amplitudes))), 4), lu

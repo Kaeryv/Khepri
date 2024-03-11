@@ -1,7 +1,7 @@
 from bast.tools import joint_subspace, _joint_subspace
 from bast.misc import block_split
 from bast.alternative import Lattice, redheffer_product, incident, poynting_fluxes
-from bast.fields import translate_mode_amplitudes2, fourier_fields_from_mode_amplitudes, fourier2direct
+from bast.fields import translate_mode_amplitudes2, fourier_fields_from_mode_amplitudes, fourier2direct, layer_eigenbasis_matrix,fourier_fields_from_mode_amplitudes_lu
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -50,14 +50,21 @@ class TwistedCrystal:
         g2s = self.c2.get_lattice(wl, (0,0)).g_vectors
         S1 = build_extended_smat(self.c1, wl, g2s, mode=1)
         S2, WIs, VIs, LIs = build_extended_smat(self.c2, wl, g1s, mode=0, store_eigenspace=True)
-        self.WIs = WIs
-        self.VIs = VIs
         self.LIs = LIs
+        self.RI = None
+        self.iRI = None
         self.lattice = self.c2.get_lattice(wl, (0,0)) + self.c1.get_lattice(wl, (0,0))
+        self.lu = None
 
         self.Stot = redheffer_product(S1, S2)
         self.S1 = S1
         self.S2 = S2
+
+        W0s = _joint_subspace([self.c2.get_lattice(wl, (0,0)).W0 for i in range(9)])
+        V0s = _joint_subspace([self.c2.get_lattice(wl, (0,0)).V0 for i in range(9)])
+
+        self.RI = layer_eigenbasis_matrix(WIs, VIs)
+        self.R0 = layer_eigenbasis_matrix(W0s, V0s)
 
     def poynting_fluxes_end(self):
         k0 = 2 * np.pi / self.wl
@@ -71,11 +78,11 @@ class TwistedCrystal:
         c1p = incident(self.lattice.pw, 1, 1, k_vector=(0,0,kzi))
         c1m = self.Stot[0,0] @ c1p
         c2p = self.Stot[1,0] @ c1p
-        cdplus, cdminus = translate_mode_amplitudes2(self.S1, self.S2, c1p, c1m,c2p)
+        cdplus, cdminus = translate_mode_amplitudes2(self.S1, self.Stot, c1p, c1m,c2p)
         d = 0.2
-        W0s = _joint_subspace([self.c2.get_lattice(wl, (0,0)).W0 for i in range(9)])
-        V0s = _joint_subspace([self.c2.get_lattice(wl, (0,0)).V0 for i in range(9)])
-        fourier_fields = fourier_fields_from_mode_amplitudes((self.WIs, self.VIs, np.diag(self.LIs)), (W0s, V0s, None), (cdplus, cdminus), self.lattice.k0*(d-z))
+
+
+        fourier_fields, self.lu = fourier_fields_from_mode_amplitudes_lu(self.RI, np.diag(self.LIs), self.R0, (cdplus, cdminus), self.lattice.k0*(d-z), lu=self.lu)
         real_fields = [ fourier2direct(ff.reshape(self.lattice.pw), 1, target_resolution=(127,127), kp=(0,0)) for ff in fourier_fields ]
 
 

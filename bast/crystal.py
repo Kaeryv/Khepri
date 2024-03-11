@@ -1,25 +1,25 @@
-
+import logging
 from collections import namedtuple
 from types import SimpleNamespace
 from enum import IntEnum
 from .tools import epsilon_g, convolution_matrix, compute_kplanar
 from .fourier import transform
-from .alternative import (Lattice, solve_structured_layer, build_scatmat, scattering_identity, 
-    redheffer_product, incident, scattering_reflection, scattering_transmission, poynting_fluxes,
-    scattering_uniform_layer)
+from .alternative import (scattering_identity, 
+    redheffer_product, incident, poynting_fluxes,
+    scattering_uniform_layer, free_space_eigenmodes)
 from copy import copy
 from cmath import sqrt as csqrt
 import numpy as np
 from bast.misc import block_split
+from bast.layer import Layer, Formulation
+from bast.expansion import Expansion
 
-from bast.fields import translate_mode_amplitudes2, fourier2direct2, fourier_fields_from_mode_amplitudes,fourier2direct
+from bast.fields import translate_mode_amplitudes2, fourier2direct2, fourier_fields_from_mode_amplitudes,fourier2direct, layer_eigenbasis_matrix
+from typing import Tuple
 
 Island = namedtuple("Island", "shape params epsilon")
 
-class Formulation(IntEnum):
-    UNIFORM = 0
-    DFT = 1
-    ANALYTICAL = 2
+
 
 class Crystal():
     def __init__(self, pw, a=1, void=False) -> None:
@@ -33,159 +33,115 @@ class Crystal():
         self.a = a
         self.void = void
         self.global_rotation = 0
+        self.expansion = Expansion(pw, a)
 
-
+    def add_layer_uniform(self, name, epsilon, depth):
+        '''
+            Add layer without planar structuration. It will be processed analytically.
+        '''
+        self.layers[name] = Layer.uniform(self.expansion, epsilon, depth)
     def add_layer_pixmap(self, name, epsilon, depth):
-        self.layers[name] = SimpleNamespace(name=name, formulation=Formulation.DFT, epsilon=epsilon, depth=depth)
-
-    def add_layer_uniform(self, name, epsilon_layer, depth):
-        self.layers[name] = SimpleNamespace(name=name, formulation=Formulation.UNIFORM, epsilon=epsilon_layer, depth=depth)
-
-    def add_layer_islands(self, name, epsilon_host, islands_description, depth):
-        self.layers[name] = SimpleNamespace(name=name, formulation=Formulation.ANALYTICAL, fourier=None, islands=islands_description, depth=depth, epsilon_host=epsilon_host)
-
+        '''
+            Add a layer from 2D ndarray that provides eps(x,y). This method will use FFT.
+        '''
+        self.layers[name] = Layer.pixmap(self.expansion, epsilon, depth)
 
     def set_stacking(self, stack):
+        '''
+            Take the stacking from the user device and pre.a.ppend the incidence and emergence media.
+        '''
         self.stacking = copy(stack)
         self.global_stacking = ["Sref"]
         self.global_stacking.extend(stack)
         self.global_stacking.append("Strans")
 
-    def get_lattice(self, wl, kp):
-        return Lattice(self.pw, self.a, wl, kp, rotation=self.global_rotation)
-
     def solve(self):
-        required_layers = set(self.stacking)
-        lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp, rotation=self.global_rotation)
+        # Solving the required layers
+        required_layers = set(self.global_stacking)
+        #lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp, rotation=self.global_rotation)
+        expansion = self.expansion
+        self.layers["Sref"] = Layer.half_infinite(self.expansion, "reflexion")
+        self.layers["Strans"] = Layer.half_infinite(self.expansion, "transmission")
         for name in required_layers:
-            current = self.layers[name]
-            if current.formulation == Formulation.DFT:
-                current.C = convolution_matrix(current.epsilon, lattice.pw)
-                current.IC = convolution_matrix(1/current.epsilon, lattice.pw)
-                current.C = current.C[lattice.trunctation][:, lattice.trunctation]
-                current.IC = current.IC[lattice.trunctation][:, lattice.trunctation]
-            elif current.formulation == Formulation.ANALYTICAL:
-                l2 = Lattice((7,7), self.a, self.source.wavelength, (0,0))
-                islands_data = [ 
-                    ( transform(isl.shape, isl.params, 
-                    l2.kx.reshape((7,7)), 
-                    l2.ky.reshape((7,7)),
-                    lattice.area), 
-                    isl.epsilon) for isl in current.islands ]
-                fourier = epsilon_g((7,7), islands_data, current.epsilon_host)
-                ifourier = epsilon_g((7,7), islands_data, current.epsilon_host, inverse=True)
-                current.fourier = fourier
-                current.C = convolution_matrix(fourier, lattice.pw, fourier=True)
-                current.IC = convolution_matrix(ifourier, lattice.pw, fourier=True)
-                
+            self.layers[name].solve(self.kp, self.source.wavelength)
 
-            elif current.formulation == Formulation.UNIFORM:
-                S, LI, WI, VI = scattering_uniform_layer(lattice, current.epsilon, current.depth, return_eigenspace=True)
-                self.layer_eigenspace[name] = SimpleNamespace(W=WI, V=VI, L=LI)
-                self.layer_matrices[name] = S
-                continue
-            # Common part
-            WI, VI, LI =  solve_structured_layer(lattice.Kx, lattice.Ky, current.C, current.IC)
-            S = build_scatmat(WI, VI, lattice.W0, lattice.V0, LI, current.depth, lattice.k0)
-            self.layer_eigenspace[name] = SimpleNamespace(W=WI, V=VI, L=LI)
-            self.layer_matrices[name] = S
+        # The stack is built this way:
+        # If reflexion side is on the left, the position is on the right, after the layer.
+        # The S matrices vector corresponds to the matrix that starts from position
+        # positions = [ -inf,  0,   d1,   d1 + d2  ]
+        # Stot      = [ Sref,  S1,  S12,  S12T      ]
+        # Srev      = [ S12T,  S2T,  ST,   I      ]
 
-
-        # Now build the stack
-        Kx = lattice.Kx
-        Ky = lattice.Ky
-        W0 = lattice.W0
-        V0 = lattice.V0
+        Stot = scattering_identity(self.expansion.pw, block=True)
 
         self.stack_positions.clear()
         self.stacking_matrices.clear()
-        
-        if not self.void:
-            Sref, Wref, Vref, Lref = scattering_reflection(Kx, Ky, W0, V0)
-            self.layer_eigenspace["Sref"] = SimpleNamespace(W=Wref, V=Vref, L=Lref)
-            self.layers["Sref"] = SimpleNamespace(name=name, depth=0.0, epsilon_host=1.0, formulation=Formulation.UNIFORM)
-            # Add incidence medium at -inf position.
-            Stot = Sref.copy()
-            self.stack_positions.append(-np.inf)
+        current_depth = - np.inf
+        self.stack_positions.append(current_depth)
+        for name in self.global_stacking:
+            Stot = redheffer_product(Stot, self.layers[name].S)
             self.stacking_matrices.append(Stot.copy())
-        else:
-            Stot = scattering_identity(self.pw, block=True)
-
-        self.stack_positions.append(0)
-        for name in self.stacking:
-            Stot = redheffer_product(Stot, self.layer_matrices[name])
-            self.stacking_matrices.append(Stot.copy())
-            self.stack_positions.append(self.stack_positions[-1] + self.layers[name].depth)
-            
-        if not self.void:
-            Strans, Wtrans, Vtrans, Ltrans = scattering_transmission(Kx, Ky, W0, V0)
-            self.layer_eigenspace["Strans"] = SimpleNamespace(W=Wtrans, V=Vtrans, L=Ltrans)
-            Stot = redheffer_product(Stot, Strans)
-        
+            if current_depth < 0:
+                current_depth=0
+            current_depth += self.layers[name].depth
+            self.stack_positions.append(current_depth)
         self.Stot = Stot
 
-        # Create the reverse stacking
-        if not self.void:
-            Srev = Strans.copy()
-            self.stacking_reverse_matrices = [ Srev ]
-        else:
-            Srev = scattering_identity(self.pw, block=True)
-            self.stacking_reverse_matrices = list()
-        for name in reversed(self.stacking):
-            Srev = redheffer_product(self.layer_matrices[name], Srev)
+        self.stacking_reverse_matrices = list()
+        Srev = scattering_identity(self.pw, block=True)
+        for name in reversed(self.global_stacking):
             self.stacking_reverse_matrices.append(Srev.copy())
+            Srev = redheffer_product(self.layers[name].S, Srev)
         self.stacking_reverse_matrices = list(reversed(self.stacking_reverse_matrices))
-
-        # test
-        # for k in range(len(self.stacking_matrices)):
-        #     Stotp = redheffer_product(self.stacking_matrices[k], self.stacking_reverse_matrices[k])
-        #     print("Error", np.mean(np.abs(Stotp-Stot)))
-        # exit()
-
+        return
 
     def field_slice_xy(self, z):
         # Locate the layer in which the fields are to be computed
         layer_index = np.searchsorted(self.stack_positions, z) - 1
         layer_name = self.global_stacking[layer_index]
-        #print(f"The fields position z = {z} is in layer {layer_index} named {layer_name}")
-        #print(f"The layer goes from {self.stack_positions[layer_index]} to {self.stack_positions[layer_index+1]}")
+        logging.debug(f"The fields position z = {z} is in layer {layer_index} named {layer_name}")
+        logging.debug(f"The layer goes from {self.stack_positions[layer_index]} to {self.stack_positions[layer_index+1]}")
         if z < 0:
             zr = z
         else:
             zr = z - self.stack_positions[layer_index]
-        #print(f"zr={zr}")
-        LI = self.layer_eigenspace[layer_name].L
-        WI = self.layer_eigenspace[layer_name].W
-        VI = self.layer_eigenspace[layer_name].V
+        logging.debug(f"zr={zr}")
+        LI = self.layers[layer_name].L
+        WI = self.layers[layer_name].W
+        VI = self.layers[layer_name].V
+        RI = layer_eigenbasis_matrix(WI, VI)
 
-        lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp, rotation=self.global_rotation)
-        Wref = self.layer_eigenspace["Sref"].W
+        e = self.expansion
+        Kx, Ky, Kz = e.k_vectors((0,0), self.source.wavelength)
+        W0, V0 = free_space_eigenmodes(Kx, Ky)
+        R0 = layer_eigenbasis_matrix(W0, V0)
+        
+        k0 = 2 * np.pi / self.source.wavelength
+
+        Wref = self.layers["Sref"].W
         iWref = np.linalg.inv(Wref)
-        c1p = iWref @ incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))[np.tile(lattice.trunctation,2)]
+        c1p = iWref @ incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))#[np.tile(lattice.trunctation,2)]
         c1m = self.Stot[0,0] @ c1p
         c2p = self.Stot[1,0] @ c1p
         cdplus, cdminus = translate_mode_amplitudes2(self.stacking_matrices[layer_index], self.stacking_reverse_matrices[layer_index], c1p, c1m,c2p)
-        print(layer_name, ":", np.mean(np.abs(cdminus)), np.mean(np.abs(cdplus)), np.mean(np.abs(c1p)), np.mean(np.abs(c1m)))
-        # NOTE: cdminus explodes for homogenous layer
-        # But not cdplus
-        # This is BEFORE propagation!
         d = self.layers[layer_name].depth
-        sx, sy, ux, uy = fourier_fields_from_mode_amplitudes((WI, VI, LI), (lattice.W0, lattice.V0, None), (cdplus, cdminus), lattice.k0*(d-zr))
-        
-        uz = -1j * ( lattice.kx * sy -  lattice.ky * sx)
-        if self.layers[layer_name].formulation == Formulation.DFT:
-            sz =  -1j * self.layers[layer_name].IC @ (lattice.kx * uy - lattice.ky * ux)
+        sx, sy, ux, uy = fourier_fields_from_mode_amplitudes(RI, LI, R0, (cdplus, cdminus), k0*(d-zr))
+
+        # Obtain longitudinal fields
+        uz = -1j * ( Kx * sy -  Ky * sx)
+        if self.layers[layer_name].formulation == Formulation.FFT:
+            sz =  -1j * self.layers[layer_name].IC @ (k0*Kx * uy - k0*Ky * ux)
         else:
-            sz =  -1j * (lattice.kx * uy - lattice.ky * ux)
+            sz =  -1j * (Kx * uy - Ky * ux)
 
         #ex, ey, ez, hx, hy, hz = [ fourier2direct2(s.reshape(self.pw), lattice.kx, lattice.ky, self.a) for s in [sx, sy, sz, ux, uy, uz]]
         def s2grid(s, pw):
             grid = np.zeros(pw, dtype="complex").flatten()
-            grid[lattice.trunctation] = s
+            grid = s #[lattice.trunctation] = s
             return grid.reshape(pw)
 
         #ex, ey, ez, hx, hy, hz = [ fourier2direct(s2grid(s, self.pw), self.a, kp=self.kp) for s in [sx, sy, sz, ux, uy, uz]]
-        ex, ey, ez, hx, hy, hz = [ fourier2direct2(s2grid(s, self.pw), lattice.kx, lattice.ky, self.a) for s in [sx, sy, sz, ux, uy, uz]]
+        ex, ey, ez, hx, hy, hz = [ fourier2direct2(s2grid(s, self.pw), k0*Kx, k0*Ky, self.a) for s in [sx, sy, sz, ux, uy, uz]]
         E = ex, ey, ez
         H = hx, hy, hz
         
@@ -217,15 +173,15 @@ class Crystal():
         self.global_rotation = np.deg2rad(alpha)
     
 
-    def poynting_flux_end(self):
-        lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp)
-        incident_fields = incident(self.pw, self.source.te, self.source.tm, kp=(self.kp[0], self.kp[1], self.kzi))
-        Wref = self.layer_eigenspace["Sref"].W
+    def poynting_flux_end(self) -> Tuple[float, float]:
+        #lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp)
+        incident_fields = incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))
+        Wref = self.layers["Sref"].W
         iWref = np.linalg.inv(Wref)
-        c1p =  iWref @ incident_fields[np.tile(lattice.trunctation,2)]
-        Wtrans = self.layer_eigenspace["Strans"].W
-        T = poynting_fluxes(lattice, Wtrans @ self.Stot[1,0] @ c1p)
-        R = poynting_fluxes(lattice, Wref @ self.Stot[0,0] @ c1p)
+        c1p =  iWref @ incident_fields #[np.tile(lattice.trunctation,2)]
+        Wtrans = self.layers["Strans"].W
+        T = poynting_fluxes(self.expansion, Wtrans @ self.Stot[1,0] @ c1p, self.kp, self.source.wavelength)
+        R = poynting_fluxes(self.expansion, Wref @ self.Stot[0,0] @ c1p, self.kp, self.source.wavelength)
 
         return R, T
 
