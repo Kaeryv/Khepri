@@ -42,3 +42,57 @@ def transform_pixmap(map, Gx, Gy, sigma):
     # 2D Fourier transform of any island
     transform = np.fft.fft2(map) / sigma
     return transform
+
+
+
+from numba import njit, prange
+@njit(parallel=True)
+def dft(field, kx, ky, a=1):
+    ffields = np.zeros_like(kx, dtype=np.complex128)
+    dx = a / len(field)
+    for i in prange(kx.shape[0]):
+        KX = np.exp(-1j*kx[i]*dx)
+        KY = np.exp(-1j*ky[i]*dx)
+        KXk = 1
+        KYl = 1
+        for k in range(field.shape[0]):
+            KYl = 1
+            for l in range(field.shape[1]):
+                ffields[i] += field[k,l] *  KXk * KYl #np.exp(-1j*(kx[i]*dx*k+ky[i]*dx*l))
+                KYl = KYl * KY
+            KXk = KXk * KX
+    return ffields
+
+@njit(parallel=False)
+def idft(ffield, kx, ky, x, y):
+    '''
+        Turns Fourier-space fields into real-space fields using home-made DFT.
+        This allows to choose when the fields should be evaluated.
+        This routine is way slower for the whole unit cell.
+    '''
+    oshape = x.shape
+    if len(x.shape) == 1:
+        x.reshape(1, 1)
+    fields = np.zeros_like(x, dtype=np.complex128)
+    dx = np.max(x) / x.shape[0]
+    dy = np.max(x) / x.shape[1]
+    for i in range(kx.shape[0]):
+        KX = np.exp(1j*kx[i]*dx)
+        KY = np.exp(1j*ky[i]*dy)
+        KXk = 1
+        KYl = 1
+        for k in range(x.shape[0]):
+            KYl = 1
+            for l in range(x.shape[1]):
+                fields[k, l] += ffield[i] *  KXk * KYl #np.exp(-1j*(kx[i]*dx*k+ky[i]*dx*l))
+                KYl *= KY
+            KXk *= KX
+    return fields.reshape(oshape)
+
+
+    coord_shape = x.shape
+    x, y = x.flatten(), y.flatten()
+    phase = np.exp(1j*(kx[..., np.newaxis]*x+ky[..., np.newaxis]*y))
+    field = ffield[..., np.newaxis] * phase
+    field = np.sum(field, axis=0)
+    return field.reshape(coord_shape)
