@@ -27,11 +27,16 @@ def scat_base_transform(S, U):
     S[1,0] = U @ S[1,0] @ inv(U)
     S[1,1] = U @ S[1,1] @ inv(U)
     return S
-
+#from scipy.sparse.linalg import spsolve
+#from scipy.sparse import csc_matrix
 def redheffer_product(SA, SB):
     I = np.eye(SA[0,0].shape[0], dtype=np.complex128)
     D = I - SB[0,0] @ SA[1,1]
     F = I - SA[1,1] @ SB[0,0]
+    #D[np.abs(D)< 1e-9] = 0
+    #F[np.abs(F)< 1e-9] = 0
+    #D =csc_matrix(D)
+    #F =csc_matrix(F)
 
     S11 = SA[0, 0] + SA[0,1] @ solve(D, SB[0, 0]) @ SA[1, 0]
     S12 = SA[0,1] @ solve(D, SB[0, 1])
@@ -41,7 +46,7 @@ def redheffer_product(SA, SB):
     S = np.array([[S11, S12], [S21, S22]])
     return S
 
-def scattering_reflection(KX, KY, W0, V0):
+def scattering_reflection(KX, KY, W0, V0, er, ur=1):
     N = len(KX)
     I = np.eye(KX.shape[0])
     KX = np.diag(KX)
@@ -51,10 +56,10 @@ def scattering_reflection(KX, KY, W0, V0):
     #     np.hstack([KY @ KY - I,    -KY @ KX]),
     # ])
     Qref = np.vstack([
-        np.hstack([KX @ KY,     I - KX @ KX]),
-        np.hstack([KY @ KY - I,   - KY @ KX]),
-    ])
-    arg = (I-KX**2-KY**2); #arg is kz^2
+        np.hstack([KX @ KY,          er*ur*I - KX @ KX]),
+        np.hstack([KY @ KY - er*ur*I,        - KY @ KX]),
+    ]) / ur
+    arg = (ur*er*I-KX**2-KY**2); #arg is kz^2
     arg = np.diag(arg)
     arg = arg.astype('complex')
     Kz = np.conj(csqrt(arg))
@@ -74,7 +79,7 @@ def scattering_reflection(KX, KY, W0, V0):
     return np.array([[S11, S12], [S21, S22]]), Wref, Vref, eigenvals
 
 
-def scattering_transmission(KX, KY, W0, V0):
+def scattering_transmission(KX, KY, W0, V0, er, ur=1):
     N = len(KX)
     I = np.eye(KX.shape[0])
     KX = np.diag(KX)
@@ -84,12 +89,12 @@ def scattering_transmission(KX, KY, W0, V0):
     #     np.hstack([KY @ KY - I,    -KY @ KX]),
     # ])
     Qref = np.vstack([
-        np.hstack([KX @ KY,     I - KX @ KX]),
-        np.hstack([KY @ KY - I,   - KY @ KX]),
-    ])
+        np.hstack([KX @ KY,     er*ur*I - KX @ KX]),
+        np.hstack([KY @ KY - er*ur*I,   - KY @ KX]),
+    ]) / ur
     # Solve the eigen problem
     #eigenvals, Wref = np.linalg.eig(Pref @ Qref)
-    arg = (I-KX**2-KY**2); #arg is kz^2
+    arg = (er*ur*I-KX**2-KY**2); #arg is kz^2
     arg = np.diag(arg)
     arg = arg.astype('complex')
     Kz = np.conj(csqrt(arg))
@@ -257,7 +262,7 @@ def solve_uniform_layer(Kx, Ky, er, m_r = 1):
     '''
     Kx = np.diag(Kx)
     Ky = np.diag(Ky)
-    N = len(Kx);
+    N = len(Kx)
     I = np.identity(N, dtype=np.complex128)
     P = (1/er) * np.block(
         [
@@ -350,12 +355,12 @@ def scattering_identity(pw, block=False):
 
 
 def poynting_fluxes(expansion, c_output, kp, wavelength):
-    #epsi=1
+    epsi=1
     #k0 = lattice.k0
     k0 = 2 * np.pi / wavelength
-    #kzi = 1 # np.conj(csqrt(k0**2*epsi-kpinc[0]**2-kpinc[1]**2))
+    kzi = np.conj(csqrt(k0**2*epsi-kp[0]**2-kp[1]**2))
     sx, sy = np.split(c_output, 2)
     kx, ky, kz = expansion.k_vectors(kp, wavelength)
     sz = - (kx * sx + ky * sy) / kz
-    t = kz.real @ (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
+    t = k0 * kz.real/kzi @ (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
     return np.sum(t)

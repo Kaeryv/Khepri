@@ -3,7 +3,7 @@ from bast.tools import convolution_matrix
 from bast.alternative import (
     solve_structured_layer, solve_uniform_layer, 
     build_scatmat, free_space_eigenmodes, scattering_reflection,
-    scattering_transmission)
+    scattering_transmission, scattering_identity, redheffer_product)
 import numpy as np
 
 from typing import Tuple
@@ -14,6 +14,29 @@ class Formulation(IntEnum):
     ANALYTICAL = 2
     HALF_SPACE_INC = 3
     HALF_SPACE_TRN = 4
+
+class Field(IntEnum):
+    X=0
+    Y=1
+    Z=2
+    NORM=3
+    POYNTING=4
+
+def stack_layers(pw, layers):
+    Stot = scattering_identity(pw, block=True)
+    Sls = []
+    for layer in layers:
+        Stot = redheffer_product(Stot, layer.S)
+        Sls.append(Stot.copy())
+
+    Srev = scattering_identity(pw, block=True)
+    Srs = []
+    for layer in reversed(layers[1:]):
+        Srs.append(Srev.copy())
+        Srev = redheffer_product(layer.S.copy(), Srev)
+    Srs.append(Srev.copy())
+    Srs = list(reversed(Srs))
+    return Sls, Srs, Stot
 
 class Layer:
     def __init__(self) -> None:
@@ -49,14 +72,17 @@ class Layer:
         raise NotImplementedError
     
     @classmethod
-    def half_infinite(cls, expansion, type):
+    def half_infinite(cls, expansion, type, epsilon):
         layer = cls()
         if type == "reflexion":
             layer.formulation = Formulation.HALF_SPACE_INC
         elif type == "transmission":
             layer.formulation = Formulation.HALF_SPACE_TRN
+        else:
+            print("ERROR")
         layer.expansion = expansion
         layer.depth = 0
+        layer.epsilon = epsilon
         return layer
     
     
@@ -79,10 +105,13 @@ class Layer:
         elif self.formulation == Formulation.UNIFORM:
             self.W, self.V, self.L =  solve_uniform_layer(Kx, Ky, self.epsilon)
             self.S = build_scatmat(self.W, self.V, W0, V0, self.L, self.depth, k0)
+            self.IC = 1 / self.epsilon
         elif self.formulation == Formulation.HALF_SPACE_INC:
-            self.S, self.W, self.V, self.L = scattering_reflection(Kx, Ky, W0, V0)
+            self.S, self.W, self.V, self.L = scattering_reflection(Kx, Ky, W0, V0, self.epsilon)
+            self.IC = 1 / self.epsilon
         elif self.formulation == Formulation.HALF_SPACE_TRN:
-            self.S, self.W, self.V, self.L = scattering_transmission(Kx, Ky, W0, V0)
+            self.S, self.W, self.V, self.L = scattering_transmission(Kx, Ky, W0, V0, self.epsilon)
+            self.IC = 1 / self.epsilon
 
 
         '''

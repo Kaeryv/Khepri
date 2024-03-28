@@ -15,3 +15,9 @@ def block_split(S):
     two = slice(m,2*m)
     # B = [np.hsplit(half, 2) for half in np.vsplit(S, 2)]
     return np.asarray([[S[one, one], S[one, two]],[S[two, one], S[two, two]]])
+
+def coords(xmin, xmax, ymin, ymax, zmin, zmax, resolution):
+    x = np.linspace(xmin, xmax, resolution[0])
+    y = np.linspace(ymin, ymax, resolution[1])
+    z = np.linspace(zmin, zmax, resolution[2])
+    return *np.meshgrid(x, y, indexing="xy"), z

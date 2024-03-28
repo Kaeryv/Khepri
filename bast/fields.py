@@ -38,18 +38,8 @@ def translate_mode_amplitudes2(Sl, Sr, c1p, c1m, c2p):
     '''
         Sld: scattering matrix left of the layer, including the layer.
         c1p: left-side incoming fields on the stack.
-        c1m: left-side outgoing fields  "   "     "
+        c1m: left-side outgoing fields
     '''
-    #fmmax
-    #cp = Sl[0,0] @ c1p
-    #F = np.eye(len(cp)) - Sl[0,1] @ Sr[1,0]
-    #cdplus = solve(F, cp)
-    #cdminus = Sr[1,0] @ cdplus
-    #print("COND", np.linalg.cond(Sl[0,1] @ Sr[0,0]))
-    #cdplus = solve(Sl[0,1] @ Sr[0,0], c1m - Sl[0,0] @ c1p)
-    #cdminus = Sr[0,0] @ cdplus
-    #cdminus = solve(Sr[1,0] @ np.linalg.inv(Sr[0,0]), c2p)
-    # 3
     F = np.eye(len(c1p)) - Sl[1,1] @ Sr[0,0]
     cdplus = solve(F, Sl[1,0] @ c1p)
     cdminus = Sr[0,0] @ cdplus
@@ -61,31 +51,92 @@ def compute_z_propagator(eigenvalues, zbar):
     return np.exp(arg), np.exp(-arg)
 
 
-def fourier2direct(ffield, a, target_resolution=(127,127), kp=(0,0)):
+
+def fourier2real_fft(ffield, a, target_resolution=(127,127), kp=(0,0)):
     '''
-        Compute the real-space field from fourier representation.
+        Compute the real-space field from a truncated fourier representation.
     '''
     pw = ffield.shape
     kxi, kyi = kp
     ext_fft = np.pad(ffield.reshape(pw), ((target_resolution[0]-pw[0])//2, (target_resolution[0]-pw[1])//2), constant_values=0)
-    xy = np.linspace(-a/2, a/2, target_resolution[0])
+    xy = np.linspace(0, a, target_resolution[0])
     XX, YY = np.meshgrid(xy,xy)
-    phase = np.exp(1j * (kxi * XX + kyi * YY)).T
+    phase = np.exp(1j * (kxi * XX + kyi * YY))
     F = np.fft.ifft2(np.fft.ifftshift(ext_fft)) * phase
     return F
 
-def fourier2direct2(ffield, kx, ky, a, target_resolution=(127,127)):
-    from itertools import product
-    vx = np.linspace(0, a, target_resolution[0])
-    vy = np.linspace(0, a, target_resolution[1])
-    ux = kx.flatten()
-    uy = ky.flatten()
-    ng = len(ux)
-    xy = np.asarray(list(product(vx, vy))).reshape(*target_resolution, 2)
-    uxy_x = np.outer(ux, xy[:,:,0]).reshape(ng, *target_resolution)
-    uxy_y = np.outer(uy, xy[:,:,1]).reshape(ng, *target_resolution)
-    fxy = np.exp(1j*(uxy_x+uxy_y))
-    return np.sum(ffield.T.reshape(ng, 1, 1) * fxy, axis=0)
+from bast.fourier import idft
+fourier2real_xy  = idft
+# def fourier2real_xy(ffield, kx, ky, x, y):
+#     '''
+#         Turns Fourier-space fields into real-space fields using home-made DFT.
+#         This allows to choose when the fields should be evaluated.
+#         This routine is way slower for the whole unit cell.
+#     '''
+#     coord_shape = x.shape
+#     x, y = x.flatten(), y.flatten()
+#     phase = np.exp(1j*(kx[..., np.newaxis]*x+ky[..., np.newaxis]*y))
+#     field = ffield[..., np.newaxis] * phase
+#     field = np.sum(field, axis=0)
+#     return field.reshape(coord_shape)
+
+# def dft(field, x, y, kx, ky):
+#     '''
+#         Naïve DFT implementation that allows more freedom in
+#         the evaluated fourier-space positions.
+#     '''
+    
+#     coord_shape = kx.shape
+#     kx, ky = kx.flatten(), ky.flatten()
+#     phase = np.exp(-1j*(kx*x[..., np.newaxis]+ky*y[..., np.newaxis]))
+#     ffield = field[...,np.newaxis] * phase
+#     ffield = np.sum(ffield, axis=(0,1))
+#     return ffield.reshape(coord_shape)
+from scipy.interpolate import RegularGridInterpolator
+
+# def dft3(field, kx, ky, a=1):
+#     '''
+#         Naïve DFT implementation that allows more freedom in
+#         the evaluated fourier-space positions.
+#     '''
+#     N = len(field)
+#     x = np.linspace(0.0, a, N, endpoint=False)
+#     x,y = np.meshgrid(x,x)
+#     coord_shape = kx.shape
+#     kx, ky = kx.flatten(), ky.flatten()
+#     phase = np.exp(-1j*(kx*x[..., np.newaxis]+ky*y[..., np.newaxis]))
+#     ffield = field[...,np.newaxis] * phase
+#     ffield = np.sum(ffield, axis=(0,1))
+#     return ffield.reshape(coord_shape)
+
+
+
+# def dft2(field, kx, ky, a=1, method="nearest"):
+#     '''
+#         Similar to dft but using fft in the background.
+#         This method does not work well with phase / real / imaginary parts.
+#     '''
+
+#     z_dft = np.fft.fftshift(np.fft.fft2(field))
+#     M = len(z_dft)
+#     kxi = 2 * np.pi / a * np.arange(-(M-1)/2, (M-1)/2+1)
+#     spline_magnitude = RegularGridInterpolator((kxi.flatten(), kxi.flatten()), np.abs(z_dft), method=method)
+#     spline_phase = RegularGridInterpolator((kxi.flatten(), kxi.flatten()), np.angle(z_dft), method=method)
+#     interp = spline_magnitude((kx, ky)) * np.exp(1j*spline_phase((kx, ky)))
+#     return interp.T
+
+def real2fourier_xy(field, kx, ky, x, y):
+    '''
+        Turns Fourier-space fields into real-space fields using home-made DFT.
+        This allows to choose when the fields should be evaluated.
+        This routine is way slower for the whole unit cell.
+    '''
+    coord_shape = kx.shape
+    kx, ky = kx.flatten(), ky.flatten()
+    phase = np.exp(1j*(kx*x[..., np.newaxis]+ky*y[..., np.newaxis]))
+    ffield = field[...,np.newaxis] * phase
+    ffield = np.sum(ffield, axis=2)
+    return ffield.reshape(coord_shape)
 
 def layer_eigenbasis_matrix(WI, VI):
     '''
@@ -94,23 +145,27 @@ def layer_eigenbasis_matrix(WI, VI):
     '''
     return np.block([[WI, WI],[-VI,VI]])
 
-def fourier_fields_from_mode_amplitudes(RI, LI, R0, mode_amplitudes, zbar):
+def fourier_fields_from_mode_amplitudes(RI, LI, R0, mode_amplitudes, zbar, luRI=None):
     '''
         Computes the fields from the mode coefficients at specified z-location (depth).
     '''
     L = np.hstack(compute_z_propagator(LI, zbar))
 
+    if luRI is None:
+        return np.split(RI @  (L * solve(RI,    R0 @ np.hstack(mode_amplitudes))), 4)
+    else:
+        return np.split(RI @ (L*lu_solve(luRI,  R0 @ np.hstack(mode_amplitudes))), 4)
 
-    return np.split(RI @  (L * solve(RI,  R0 @ np.hstack(mode_amplitudes))), 4)
+def isnumber(x):
+    return isinstance(x, (int, float, complex)) and not isinstance(x, bool)
 
-def fourier_fields_from_mode_amplitudes_lu(RI, LI, R0, mode_amplitudes, zbar, lu=None):
-    '''
-        Computes the fields from the mode coefficients at specified z-location (depth).
-        RI @ L @ inv(RI) @ R0 @ c
-        Using the LU decomposition strongly speeds up the process for different z depth.
-    '''
-    L = np.hstack(compute_z_propagator(LI, zbar))
-    if lu is None:
-        lu = lu_factor(RI)
 
-    return np.split(RI @ (L*lu_solve(lu,  R0 @ np.hstack(mode_amplitudes))), 4), lu
+def longitudinal_fields(transverse_fields, kx, ky, IC=1.0):
+    sx, sy, ux, uy = transverse_fields
+    uz = -1j * ( kx * sy -  ky * sx)
+    if isnumber(IC):
+        sz =  -1j * IC * (kx * uy - ky * ux)
+    else:
+        sz =  -1j * IC @ (kx * uy - ky * ux)
+
+    return sz, uz
