@@ -65,8 +65,6 @@ def fourier2real_fft(ffield, a, target_resolution=(127,127), kp=(0,0)):
     F = np.fft.ifft2(np.fft.ifftshift(ext_fft)) * phase
     return F
 
-from bast.fourier import idft
-fourier2real_xy  = idft
 # def fourier2real_xy(ffield, kx, ky, x, y):
 #     '''
 #         Turns Fourier-space fields into real-space fields using home-made DFT.
@@ -75,10 +73,13 @@ fourier2real_xy  = idft
 #     '''
 #     coord_shape = x.shape
 #     x, y = x.flatten(), y.flatten()
-#     phase = np.exp(1j*(kx[..., np.newaxis]*x+ky[..., np.newaxis]*y))
+#     phase = np.exp(1j*(kx[..., np.newaxis]*x[np.newaxis, ...]+ky[..., np.newaxis]*y[np.newaxis, ...]))
 #     field = ffield[..., np.newaxis] * phase
 #     field = np.sum(field, axis=0)
-#     return field.reshape(coord_shape)
+#     return field.reshape(coord_shape).T
+
+from bast.fourier import idft
+fourier2real_xy  = idft
 
 # def dft(field, x, y, kx, ky):
 #     '''

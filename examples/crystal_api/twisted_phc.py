@@ -16,13 +16,14 @@ from bast.tools import rotation_matrix as rot
 '''
     Parameters
 '''
-pw = (7,7)
+pw = (5,5)
 N = 256
-frequency = 0.7195 # c/a
-angle_deg = 8.1    # deg
-polarization = (1, 1j) # norm
+frequency = 1/1.35 # c/a
+angle_deg = 6.76    # deg
+polarization = (1, 1) # norm
 theta = 0
 phi = 0
+kp=None
 
 '''
     Define the pattern (common to both layers)
@@ -37,30 +38,35 @@ pattern.circle((0,0), 0.25, 1.0)
 e1 = Expansion(pw)
 e2 = Expansion(pw)
 e2.rotate(angle_deg)
-# e1.rotate(-angle_deg/2)
 
 '''
     Define the crystal layers. (Be careful that layers with different twist angles are different objects.)
 '''
 twcl = Crystal.from_expansion(e1+e2)
 etw = twcl.expansion
-#twcl.expansion._gvectors = rot(np.deg2rad(-90/2)) @ etw.g_vectors
-twcl.add_layer("Sref",     ExtendedLayer(etw, Layer.half_infinite(e1, "reflexion", 1),  e2.g_vectors, 1))
-#twcl.add_layer("Sbuffer",  ExtendedLayer(etw, Layer.uniform(e1, 1.0, 0.4),              e2.g_vectors, 1))
-twcl.add_layer("Scylup",   ExtendedLayer(etw, Layer.pixmap(e1, pattern.canvas(), 0.2),  e2.g_vectors, 1))
-twcl.add_layer("Sair",     ExtendedLayer(etw, Layer.uniform(e1, 1.0, 0.3),              e2.g_vectors, 1))
-twcl.add_layer("Scyldo",   ExtendedLayer(etw, Layer.pixmap(e2, pattern.canvas(), 0.2),  e1.g_vectors, 0))
-#twcl.add_layer("Sbuffer2", ExtendedLayer(etw, Layer.uniform(e2, 1.0, 0.4),              e1.g_vectors, 0))
-twcl.add_layer("Strans",   ExtendedLayer(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
+twcl.add_layer("Sref",     
+    ExtendedLayer(etw, Layer.half_infinite(e1, "reflexion", 1),  e2.g_vectors, 1))
+twcl.add_layer("Scylup",   
+    ExtendedLayer(etw, Layer.pixmap(e1, pattern.canvas(), 0.2),  e2.g_vectors, 1))
+twcl.add_layer("Sair",
+    ExtendedLayer(etw, Layer.uniform(e1, 1.0, 0.3),              e2.g_vectors, 1))
+twcl.add_layer("Scyldo",   
+    ExtendedLayer(etw, Layer.pixmap(e2, pattern.canvas(), 0.2),  e1.g_vectors, 0))
+#twcl.add_layer("Sbuffer2", 
+#    ExtendedLayer(etw, Layer.uniform(e2, 1.0, 0.4),              e1.g_vectors, 0))
+twcl.add_layer("Strans",   
+    ExtendedLayer(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
 
 '''
     Define the device and solve.
 '''
-device = ["Scylup", "Sair","Scyldo"]
+device = ["Scylup", "Sair", "Scyldo"]
 twcl.set_stacking(device)
-twcl.set_source(1/frequency, polarization[0], polarization[1], theta, phi)
+twcl.set_source(1/frequency, polarization[0], polarization[1], theta, phi, kp=kp)
 twcl.solve()
+zmax = twcl.stack_positions[-2]
 
+print("Solved crystal")
 
 if False:
     '''
@@ -106,17 +112,24 @@ if True:
         Get those fields in transversal plane
     '''
     #etw.plot()
-    depth = 0.705
-    x, y, z = coords(-10, 10, -10, 10, depth, depth, (512, 512, 1))
-    E, H = twcl.fields_volume2(x, y, z) # Progress bar on z axis
+    depth = 0.35#zmax+0.9
+    w = 6
+    x, y, z = coords(-w, w, -w, w, depth, depth, (512, 512, 1))
+    E, H = twcl.fields_volume2(x, y, z)
     E = np.squeeze(E)
     print(E.shape)
-    Exxy = (E[0]).real
-    Eyxy = (E[1]).real
-    Edisp = Exxy**2+Eyxy**2
-    vmax = np.max(np.abs(Edisp))
-    fig, ax = plt.subplots(figsize=(10,10))
-    #ax.matshow(Edisp, cmap="RdBu", origin="lower", vmin=-vmax, vmax=vmax, extent=[ 0, np.max(x), 0, np.max(y)])
-    ax.matshow(Edisp, cmap="inferno", origin="lower", vmin=0, vmax=vmax, extent=[ np.min(x), np.max(x), np.min(y), np.max(y)])
-    ax.axis("equal")
+    Exxy = E[0]
+    Eyxy = E[1]
+    Ezxy = E[2]
+    Edisp =  Exxy#**2+Eyxy**2#+Ezxy**2
+    vmax = np.max(np.abs(Edisp.real))
+    fig, (ax1,ax2) = plt.subplots(2, figsize=(10,10))
+    im = ax1.matshow(Edisp.real, cmap="bwr", origin="lower", vmin=-vmax, vmax=vmax, extent=[ np.min(x), np.max(x), np.min(y), np.max(y)])
+    #im = ax1.matshow(np.abs(Edisp), cmap="inferno", origin="lower", vmin=0, vmax=vmax, extent=[ np.min(x), np.max(x), np.min(y), np.max(y)])
+    alpha = np.abs(Edisp) / np.max(np.abs(Edisp))
+    im2 = ax2.matshow(np.angle(Edisp), cmap="hsv", origin="lower", vmin=-np.pi, vmax=np.pi, extent=[ np.min(x), np.max(x), np.min(y), np.max(y)], alpha=alpha)
+    plt.colorbar(im)
+    plt.colorbar(im2)
+    ax1.axis("square")
+    ax2.axis("square")
     plt.savefig("twisted_fields_transversal.png")
