@@ -65,6 +65,18 @@ class Crystal():
         if not self.void:
             self.global_stacking.append("Strans")
 
+    def filter_layers_requiring_fields(self, stack, positions, interval):
+        zmin, zmax = interval
+        keep = False
+        mask = list()
+        for i, (layer, position) in enumerate(zip(stack, positions)):
+            if zmin <= position and not keep:
+                keep = True
+            elif zmax < position and keep:
+                keep=False
+            mask.append(keep)
+        return mask
+
     def solve(self):
         # Solving the required layers
         required_layers = set(self.global_stacking)
@@ -81,35 +93,17 @@ class Crystal():
         # Stot      = [ Sref,  S1,  S12,  S12T      ]
         # Srev      = [ S12T,  S2T,  ST,   I      ]
         stacked_layers = [ self.layers[name] for name in self.global_stacking ]
-        self.stacking_matrices, self.stacking_reverse_matrices, self.Stot = stack_layers(self.expansion.pw, stacked_layers)
         layer_sizes = [ l.depth for l in stacked_layers ]
+
         self.stack_positions = list(np.cumsum(layer_sizes))
+        mask = self.filter_layers_requiring_fields(stacked_layers, self.stack_positions, self.fields_interval)
         self.stack_positions[-1] = np.inf
         if not self.void:
             self.stack_positions.insert(0, -np.inf )
+        
 
-        ## Legacy code moved to stak_layers
-        # Stot = scattering_identity(self.expansion.pw, block=True)
+        self.stacking_matrices, self.stacking_reverse_matrices, self.Stot = stack_layers(self.expansion.pw, stacked_layers, mask)
 
-        # self.stack_positions.clear()
-        # self.stacking_matrices.clear()
-        # current_depth = - np.inf
-        # self.stack_positions.append(current_depth)
-        # for name in self.global_stacking:
-        #     Stot = redheffer_product(Stot, self.layers[name].S)
-        #     self.stacking_matrices.append(Stot.copy())
-        #     if current_depth < 0:
-        #         current_depth=0
-        #     current_depth += self.layers[name].depth
-        #     self.stack_positions.append(current_depth)
-        # self.Stot = Stot
-
-        # self.stacking_reverse_matrices = list()
-        # Srev = scattering_identity(self.pw, block=True)
-        # for name in reversed(self.global_stacking):
-        #     self.stacking_reverse_matrices.append(Srev.copy())
-        #     Srev = redheffer_product(self.layers[name].S, Srev)
-        # self.stacking_reverse_matrices = list(reversed(self.stacking_reverse_matrices))
     
     def locate_layer(self, z):
         """Locates the layer at depth z and also computes the position relative to layer.
@@ -120,6 +114,7 @@ class Crystal():
         Returns:
             tuple: The layer, the index and the relative depth.
         """
+        assert(z!=np.nan)
         layer_index = np.searchsorted(self.stack_positions, z) - 1
         layer_name = self.global_stacking[layer_index]
         if z < 0:
@@ -143,7 +138,7 @@ class Crystal():
             _type_: fourier fields at depth z.
         """
         layer, layer_index, zr = self.locate_layer(z)
-        
+        assert(layer.fields, f"Layer at {z} did not store eigenspace.")
         LI, WI, VI= layer.L, layer.W, layer.V
         RI = layer_eigenbasis_matrix(WI, VI)
         if use_lu and not hasattr(layer, "luRI"):
@@ -274,4 +269,7 @@ class Crystal():
         R = poynting_fluxes(self.expansion, Wref @ self.Stot[0,0] @ c1p, self.kp, self.source.wavelength)
 
         return R, T
+    
+    def prepare_fields(self, zstart, zend):
+        self.fields_interval = zstart, zend
 

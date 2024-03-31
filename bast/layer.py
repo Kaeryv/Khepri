@@ -22,17 +22,24 @@ class Field(IntEnum):
     NORM=3
     POYNTING=4
 
-def stack_layers(pw, layers):
+def stack_layers(pw, layers, mask):
     Stot = scattering_identity(pw, block=True)
     Sls = []
-    for layer in layers:
+    for i, layer in enumerate(layers):
         Stot = redheffer_product(Stot, layer.S)
-        Sls.append(Stot.copy())
+        if mask[i]:
+            Sls.append(Stot.copy())
+        else:
+            Sls.append(None)
 
     Srev = scattering_identity(pw, block=True)
+    mask = list(reversed(mask[1:]))
     Srs = []
-    for layer in reversed(layers[1:]):
-        Srs.append(Srev.copy())
+    for i, layer in enumerate(reversed(layers[1:])):
+        if mask[i]:
+            Srs.append(Srev.copy())
+        else:
+            Srs.append(None)
         Srev = redheffer_product(layer.S.copy(), Srev)
     Srs.append(Srev.copy())
     Srs = list(reversed(Srs))
@@ -48,6 +55,8 @@ class Layer:
         self.L = None
 
         self.S = None
+
+        self.fields = False
 
     @classmethod
     def pixmap(cls, expansion, pixmap, depth):
@@ -112,6 +121,12 @@ class Layer:
         elif self.formulation == Formulation.HALF_SPACE_TRN:
             self.S, self.W, self.V, self.L = scattering_transmission(Kx, Ky, W0, V0, self.epsilon)
             self.IC = 1 / self.epsilon
+
+        if not self.fields:
+            self.W= None
+            self.V= None
+            self.L=None
+            self.IC=None
 
 
         '''

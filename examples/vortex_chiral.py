@@ -118,6 +118,7 @@ def get_crystals(kbz, twisted=False):
             cl.add_layer("Strans",EL(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
             cl.layers["Si2"].fields = True
             cl.layers["Sref"].fields = True
+            cl.prepare_fields(3.4, 3.5)
             stack = []
             stack.extend(["S1"]*ss)
             stack.extend(["Si"]*ss)

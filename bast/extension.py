@@ -3,7 +3,7 @@ from bast.alternative import free_space_eigenmodes
 import numpy as np
 from bast.layer import Layer
 from bast.expansion import Expansion
-
+from scipy.sparse import csc_matrix
 from enum import IntEnum
 
 class Extension(IntEnum):
@@ -18,26 +18,37 @@ class ExtendedLayer():
         self.gs = gs
         self.depth = self.base.depth
         self.mode = mode
+        self.fields = self.base.fields
 
     def solve(self, k_parallel, wavelength):
         Ss = list()
         WIs = list()
         VIs = list()
         LIs = list()
+
+        if hasattr(self, "fields"):
+            self.base.fields = self.fields
+
         for kp in self.gs.T:
             self.base.solve(kp + k_parallel, wavelength)
             Ss.append(self.base.S.copy())
-            WIs.append(self.base.W.copy())
-            VIs.append(self.base.V.copy())
-            LIs.append(np.diag(self.base.L).copy())
+            if self.fields:
+                WIs.append(self.base.W.copy())
+                VIs.append(self.base.V.copy())
+                LIs.append(np.diag(self.base.L).copy())
 
         mode = self.mode
         self.S =  joint_subspace(Ss, kind=mode)
-        self.W = _joint_subspace(WIs, kind=mode)
-        self.V = _joint_subspace(VIs, kind=mode)
-        self.W0, self.V0 = extended_freespace(self.base.expansion, self.gs.T, wavelength, mode, k_parallel)
-        self.L = np.diag(_joint_subspace(LIs, kind=mode))
+        #self.S[abs(self.S)<1e-8] = 0
+        #self.S = [ [ csc_matrix(sij) for sij in Si ] for Si in self.S]
+        if self.fields:
+            self.W = _joint_subspace(WIs, kind=mode)
+            self.V = _joint_subspace(VIs, kind=mode)
+            self.W0, self.V0 = extended_freespace(self.base.expansion, self.gs.T, wavelength, mode, k_parallel)
+            self.L = np.diag(_joint_subspace(LIs, kind=mode))
+
         self.IC = 1.0
+
 
 
 # def extended_layer(layer: Layer, expansion: Expansion, wl, gs, mode):
