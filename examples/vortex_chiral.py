@@ -43,22 +43,44 @@ cell_size =  size(twist_angle) if twisted else 1
 print(cell_size)
 
 bzi = int(sys.argv[1])
+pwx = int(sys.argv[2])
+pw = (pwx, pwx)
 
 kbz = gen_bzi_grid((bzi, bzi), a=cell_size, reciproc=None).reshape(2, -1).T
 
+e1 =Expansion(pw)
+e2 =Expansion(pw)
+e2.rotate(twist_angle)
+e = e1+e2
+gnorm =  np.linalg.norm(e.g_vectors, axis=0)
+asrt = np.argsort(gnorm)
+#for i in range(1,5):
+#    print(gnorm[asrt[i]])
+kmin = gnorm[asrt[2]]
+cell_size = 4*np.pi / kmin
+print(cell_size)
+kbz = gen_bzi_grid((bzi, bzi), a=cell_size, reciproc=None).reshape(2, -1).T
+t = np.linspace(0, np.pi*2)
+kbz = (rot(np.deg2rad(0)) @ kbz.T).T
+if False:
+    fig, ax = plt.subplots()
+    e.plot(ax=ax)
+    plt.plot(kmin/2*np.cos(t), kmin/2 * np.sin(t), 'k-')
+    ax.scatter(*kbz.T, c='b')
+    plt.show()
+#exit()
+
 NS = 31 #int(cell_size * 3)
-wl = 1/0.725#1 / 0.5
-theta = 0.0
+wl = 1 / 0.735
+theta = 0
 
 '''
     Build and solve the crystal
 '''
 
-pattern = Drawing((128,128), 4)
-pattern.circle((0,0), 0.25, 1)
+pattern = Drawing((128,128), 9)
+pattern.circle((0,0), 0.45/2, 1)
 #pattern.rectangle((0,0), (1,0.5), 1)
-pwx = int(sys.argv[2])
-pw = (pwx, pwx)
 def get_crystals(kbz, twisted=False):
     crystals = list()
     if not twisted:
@@ -69,7 +91,7 @@ def get_crystals(kbz, twisted=False):
             cl.add_layer_uniform("S1", 1, 0.7/ss)
             cl.add_layer_pixmap("Scyl", pattern.canvas(), 0.4)
             cl.add_layer_uniform("S2", 1, 0.7/ss)
-            cl.set_stacking(["Scyl"])
+            cl.set_stacking(["S1"])
             cl.set_source(wl, np.nan, np.nan, kp=kp)
             cl.solve()
             crystals.append(cl)
@@ -81,14 +103,20 @@ def get_crystals(kbz, twisted=False):
         #etw._g_vectors = rot(-np.deg2rad(twist_angle)/2) @ etw.g_vectors
         for kp in tqdm(kbz):
             cl = Crystal.from_expansion(etw)
+            ss = 2
             #cl.a = cell_size
             cl.add_layer("Sref",  EL(etw, Layer.half_infinite(e1, "reflexion", 1),    e2.g_vectors, 1))
-            cl.add_layer("S1",    EL(etw, Layer.pixmap(e1, pattern.canvas(), 0.4),    e2.g_vectors, 1))
-            cl.add_layer("Si",    EL(etw, Layer.uniform(e1, 1.0,  0.3),               e2.g_vectors, 1))
-            cl.add_layer("Si2",   EL(etw, Layer.uniform(e2, 1.0,  0.3),               e1.g_vectors, 0))
-            cl.add_layer("S2",    EL(etw, Layer.pixmap(e2, pattern.canvas(), 0.4),    e1.g_vectors, 0))
+            cl.add_layer("S1",    EL(etw, Layer.pixmap(e1, pattern.canvas(), 0.22/ss),    e2.g_vectors, 1))
+            cl.add_layer("Si",    EL(etw, Layer.uniform(e1, 1.0,  0.3/ss),               e2.g_vectors, 1))
+            cl.add_layer("Si2",   EL(etw, Layer.uniform(e2, 1.0,  1),               e1.g_vectors, 0))
+            cl.add_layer("S2",    EL(etw, Layer.pixmap(e2, pattern.canvas(), 0.22/ss),    e1.g_vectors, 0))
             cl.add_layer("Strans",EL(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
-            cl.set_stacking([ "S1", "S2"])
+            stack = []
+            stack.extend(["S1"]*ss)
+            stack.extend(["Si"]*ss)
+            stack.extend(["S2"]*ss)
+            stack.extend(["Si2"]*4)
+            cl.set_stacking(stack)
             cl.set_source(wl, np.nan, np.nan, kp=kp)
             cl.solve()
             crystals.append(cl)
@@ -107,8 +135,8 @@ Z = np.zeros_like(X)
 
 zmax = crystals[0].stack_positions[-2]
 print(f"Computing sources {zmax=}")
-#source_real=shifted_rotated_fields(_paraxial_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, -zmax/2,theta,0.0*np.pi,0)
-source_real = shifted_rotated_fields(_paraxial_laguerre_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, -1, theta, 0, np.pi/4, l=1, p=0, w0=cell_size)
+source_real=shifted_rotated_fields(_paraxial_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, 1, theta,0.0*np.pi, 0.5*np.pi/2, beam_waist=3)
+#source_real = shifted_rotated_fields(_paraxial_laguerre_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, -1, theta, 0, np.pi/4, l=1, p=0, w0=0.7*cell_size)
 
 source_real = np.asarray(source_real)
 source_real = np.swapaxes(source_real, 0, 2)
@@ -126,38 +154,48 @@ Fs = [ np.split(F.flatten(), 2)[0] for F in Fs ]
 '''
     Compute the fields after the structure.
 '''
-x = np.linspace(0, cell_size*bzi, 128)
-y = np.linspace(0, cell_size*bzi, 128)
+#|x|x||x||x|x|
+x = np.linspace(1.5*cell_size, cell_size*(bzi-1.5), 128)
+y = np.linspace(1.5*cell_size, cell_size*(bzi-1.5), 128)
+#y = np.linspace(30, 60, 64)
+print(x[0], x[-1], cell_size*bzi)
 x, y = np.meshgrid(x, y, indexing="ij")
 
 print("Computing fields")
+from bast.alternative import incident
 fields = list()
 for c, F, kp in zip(tqdm(crystals), Fs, kbz):
-    E, H = c.fields_coords_xy(x, y, zmax+0.1, F, use_lu=False)
+    #F = incident(c.expansion.pw, 1, 1, kp)
+    E, H = c.fields_coords_xy(x, y, 3.5, F, use_lu=False)
     fields.append((E, H))
 fields = np.asarray(fields)
 np.savez_compressed("tw_fields.npz", fields)
 
-
-fig, axs = plt.subplots(bzi, bzi)
-fig2, axs2 = plt.subplots(bzi, bzi)
-for field, ax1, ax2, kp in zip(fields, axs.flat,axs2.flat, kbz):
-    f = field[0, 0, :, :]
-    nf = np.abs(f)
-    nf /= np.max(nf)
-    ax1.matshow(np.angle(f), cmap="hsv", vmin=-np.pi, vmax=np.pi)
-    ax2.matshow(np.abs(f), cmap="hot")
-fig.savefig("explode_bzi.png")
-fig2.savefig("explode_bzi_angle.png")
-
+if False:
+    fig, axs = plt.subplots(bzi, bzi)
+    fig2, axs2 = plt.subplots(bzi, bzi)
+    for field, ax1, ax2, kp in zip(fields, axs.flat,axs2.flat, kbz):
+        f = field[0, 0, :, :]
+        nf = np.abs(f)
+        nf /= np.max(nf)
+        ax1.matshow(np.angle(f), cmap="hsv", vmin=-np.pi, vmax=np.pi)
+        ax2.matshow(np.abs(f), cmap="hot")
+        ax2.axis("off")
+        ax1.axis("off")
+    fig2.savefig("explode_bzi.png")
+    fig.savefig("explode_bzi_angle.png")
+    plt.show()
 fields = fields.sum(0)
 fields = fields[0, 0, :, :]
 sr = source_real[..., 0, 0]
+
 fig, axs = plt.subplots(2, 2, figsize=(5,5))
 normfields = np.abs(fields)
 normfields /= np.max(normfields)
-image = axs[0,0].matshow(normfields, cmap="hot",extent=[0, np.max(x), 0, np.max(y)]) #, vmin=-1, vmax=1
-image = axs[0,1].matshow(np.angle(fields), cmap="hsv",extent=[0, np.max(x), 0, np.max(y)], alpha=normfields) #, vmin=-1, vmax=1
+#np.abs
+image = axs[0,0].matshow(fields.real**2, cmap="hot",extent=[np.min(x), np.max(x), np.min(x), np.max(y)]) #, vmin=-1, vmax=1
+plt.colorbar(image)
+image = axs[0,1].matshow(np.angle(fields), cmap="hsv",extent=[0, np.max(x), 0, np.max(y)], alpha=normfields, vmin=-np.pi, vmax=np.pi) #, vmin=-1, vmax=1
 normsr = np.abs(sr)
 normsr /= np.max(normsr)
 image = axs[1,0].matshow(normsr, cmap="hot",extent=[0, np.max(x), 0, np.max(y)]) #, vmin=-1, vmax=1
@@ -166,3 +204,7 @@ image = axs[1,1].matshow(np.angle(sr), cmap="hsv",extent=[0, np.max(x), 0, np.ma
 axs[0,0].set_xlabel("Length [µm]")
 axs[0,0].set_ylabel("Width [µm]")
 fig.savefig("vortex_chiral.png")
+fig, ax = plt.subplots(figsize=(10,10))
+ax.matshow(normfields, cmap="hot",extent=[0, np.max(x), 0, np.max(y)]) #, vmin=-1, vmax=1
+ax.axis("off")
+plt.savefig("hres.png")
