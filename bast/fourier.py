@@ -63,7 +63,7 @@ def dft(field, kx, ky, a=1):
             KXk = KXk * KX
     return ffields
 
-@njit(parallel=False)
+@njit(parallel=True)
 def idft(ffield, kx, ky, x, y):
     '''
         Turns Fourier-space fields into real-space fields using home-made DFT.
@@ -71,12 +71,14 @@ def idft(ffield, kx, ky, x, y):
         This routine is way slower for the whole unit cell.
     '''
     oshape = x.shape
-    if len(x.shape) == 1:
-        x.reshape(1, 1)
+    #if len(x.shape) == 1:
+    #    x = x.reshape(1, 1)
+    #    y = y.reshape(1, 1)
     fields = np.zeros_like(x, dtype=np.complex128)
     dx = np.max(x) / x.shape[0]
     dy = np.max(x) / x.shape[1]
-    for i in range(kx.shape[0]):
+    for i in prange(kx.shape[0]):
+        field_i = np.zeros_like(x, dtype=np.complex128)
         KX = np.exp(1j*kx[i]*dx)
         KY = np.exp(1j*ky[i]*dy)
         KXk = 1
@@ -84,9 +86,10 @@ def idft(ffield, kx, ky, x, y):
         for k in range(x.shape[0]):
             KYl = 1
             for l in range(x.shape[1]):
-                fields[k, l] += ffield[i] *  KXk * KYl #np.exp(-1j*(kx[i]*dx*k+ky[i]*dx*l))
+                field_i[k, l] += ffield[i] *  KXk * KYl #np.exp(-1j*(kx[i]*dx*k+ky[i]*dx*l))
                 KYl *= KY
             KXk *= KX
+        fields += field_i
     return fields.reshape(oshape)
 
 
