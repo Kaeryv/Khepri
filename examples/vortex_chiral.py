@@ -14,6 +14,11 @@ from tqdm import tqdm
 from bast.beams import gen_bzi_grid
 from bast.tools import rotation_matrix as rot
 from bast.tools import reciproc
+import psutil
+import os
+
+process = psutil.Process(os.getpid())
+
 
 # Worse as angle increases
 twist_angle=float(sys.argv[3])
@@ -111,6 +116,8 @@ def get_crystals(kbz, twisted=False):
             cl.add_layer("Si2",   EL(etw, Layer.uniform(e2, 1.0,  1),               e1.g_vectors, 0))
             cl.add_layer("S2",    EL(etw, Layer.pixmap(e2, pattern.canvas(), 0.22/ss),    e1.g_vectors, 0))
             cl.add_layer("Strans",EL(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
+            cl.layers["Si2"].fields = True
+            cl.layers["Sref"].fields = True
             stack = []
             stack.extend(["S1"]*ss)
             stack.extend(["Si"]*ss)
@@ -124,6 +131,8 @@ def get_crystals(kbz, twisted=False):
     return crystals, e
 
 crystals, expansion = get_crystals(kbz, twisted=twisted)
+
+print("Solved crystals, memory at ", process.memory_info().rss/1024**3, "GB")
 
 '''
     Sources computation
