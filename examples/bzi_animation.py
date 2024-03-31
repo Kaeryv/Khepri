@@ -41,7 +41,7 @@ kbz[0] += kp[0].real
 kbz[1] += kp[1].real
 
 
-source_real=shifted_rotated_fields(_paraxial_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, -3,theta,0.0*np.pi,0)
+source_real=shifted_rotated_fields(_paraxial_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, -4,theta,0.0*np.pi,0, beam_waist=1)
 #source_real = shifted_rotated_fields(_paraxial_laguerre_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, -3, theta, 0, 0, l=3, p=0)
 
 source_real = np.asarray(source_real)
@@ -64,7 +64,7 @@ for kp in kbz2:
     cl.add_layer_uniform("S1", 1, 2.1/ss)
     cl.add_layer_uniform("S2", 1, 1.1/ss)
     cl.add_layer_pixmap("Scyl", pattern.canvas(), 0.55/ss)
-    cl.set_stacking(["Scyl", "S1", "Scyl"])
+    #cl.set_stacking(["Scyl", "S1", "Scyl"])
     stack = []
     stack.extend(["S1"]*ss)
     stack.extend(["S1"]*ss)
@@ -110,14 +110,14 @@ Fs = [ F.reshape(pw[0]**2, 2, 2) for F in Fs ]
 Fs = [np.asarray([F[:, 0, 0],F[:, 0, 1],F[:, 1, 0],F[:, 1, 1]]).flatten() for F in Fs]
 #F = np.linalg.solve(R0, F)
 Fs = [ np.split(F, 2)[0] for F in Fs ]
-x = np.linspace(0, 1*bzs[0], 512)
-y = np.ones(512)*0.5*bzs[0]
+x = np.linspace(0, 1*bzs[0], 512)[:, np.newaxis]
+y = np.ones((512, 1))*0.5*bzs[0]
 
 from tqdm import tqdm
 from matplotlib.animation import FuncAnimation
 print(x.shape, y.shape)
 # Do BZI
-zmax = cl.stack_positions[-1]
+zmax = cl.stack_positions[-2]
 zres = 256
 zvals =np.linspace(0.0001, zmax, zres)
 import os
@@ -127,8 +127,8 @@ if os.path.isfile(fn):
 else:
     print("loading fields from disk")
     fields = list()
-    for c, F, kp in zip(crystals, Fs, kbz2):
-        E, H = c.fields_volume2(x, y, tqdm(zvals), incident_fields=F)
+    for c, F, kp in zip(tqdm(crystals, position=0), Fs, kbz2):
+        E, H = np.squeeze(c.fields_volume2(x, y, tqdm(zvals, position=1, leave=False), incident_fields=F))
         fields.append((E, H))
 
     fig, axs = plt.subplots(*bzs)
@@ -171,7 +171,7 @@ elif shown==Field.POYNTING:
     exit()
 
 
-K = np.exp(1j)
+K = np.exp(-1j)
 fig, ax = plt.subplots(figsize=(6,6))
 image = ax.matshow(fields.real, cmap="RdBu",extent=[0, np.max(x), 0, zmax]) #, vmin=-1, vmax=1
 eps = pattern.canvas()
