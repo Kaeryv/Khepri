@@ -75,16 +75,17 @@ def idft(ffield, kx, ky, x, y):
     #    x = x.reshape(1, 1)
     #    y = y.reshape(1, 1)
     fields = np.zeros_like(x, dtype=np.complex128)
-    dx = np.max(x) / x.shape[0]
-    dy = np.max(x) / x.shape[1]
+    xmin, xmax = np.min(x), np.max(x)
+    ymin, ymax = np.min(y), np.max(y)
+    dx = (xmax - xmin) / x.shape[0]
+    dy = (xmax - ymin) / x.shape[1]
     for i in prange(kx.shape[0]):
         field_i = np.zeros_like(x, dtype=np.complex128)
         KX = np.exp(1j*kx[i]*dx)
         KY = np.exp(1j*ky[i]*dy)
-        KXk = 1
-        KYl = 1
+        KXk = np.exp(1j*kx[i]*np.min(x))
         for k in range(x.shape[0]):
-            KYl = 1
+            KYl = np.exp(1j*ky[i]*np.min(y))
             for l in range(x.shape[1]):
                 field_i[k, l] += ffield[i] *  KXk * KYl #np.exp(-1j*(kx[i]*dx*k+ky[i]*dx*l))
                 KYl *= KY
