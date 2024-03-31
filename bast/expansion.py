@@ -74,21 +74,24 @@ class Expansion:
         self._compute_k_vector(k_parallel=k_parallel, wavelength=wavelength)
         return self._k_vectors
     
-    def plot(self, what="gxy"):
+    def plot(self, what="gxy", ax=None, show=False):
         import matplotlib.pyplot as plt
         if what == "gxy":
-            _, ax = plt.subplots()
+            if ax is None:
+                _, ax = plt.subplots()
             ax.plot(*self._g_vectors, 'r.')
             ax.axis("square")
             ax.axis("equal")
         elif what == "K":
             self._compute_k_vector((0,0), 0.3)
-            ax = plt.figure().add_subplot(projection='3d')
+            if ax in None:
+                ax = plt.figure().add_subplot(projection='3d')
             x = self._g_vectors[0].reshape(self.pw)
             y = self._g_vectors[1].reshape(self.pw)
             z = np.zeros(self.pw)
             ax.quiver(x*0,y*0,z*0, *self._k_vectors.reshape(3, *self.pw),arrow_length_ratio=0)
             ax.set_zlim(0, 1)
-        plt.show()
+        if show:
+            plt.show()
 
     
