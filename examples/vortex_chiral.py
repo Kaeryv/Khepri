@@ -17,6 +17,10 @@ from bast.tools import reciproc
 import psutil
 import os
 
+import time
+
+script_start_time = time.time_ns()
+
 process = psutil.Process(os.getpid())
 
 
@@ -218,3 +222,6 @@ fig, ax = plt.subplots(figsize=(10,10))
 ax.matshow(normfields, cmap="hot",extent=[0, np.max(x), 0, np.max(y)]) #, vmin=-1, vmax=1
 ax.axis("off")
 plt.savefig("hres.png")
+script_end_time = time.time_ns()
+
+print((script_end_time - script_start_time) * 1e-9, "s elapsed.")
