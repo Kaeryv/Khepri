@@ -18,7 +18,7 @@ import psutil
 import os
 
 process = psutil.Process(os.getpid())
-
+fdepth = 5
 
 # Worse as angle increases
 twist_angle=float(sys.argv[3])
@@ -82,102 +82,72 @@ theta = 0
 '''
     Build and solve the crystal
 '''
+from bast.beams import amplitudes_from_fields
+from bast.alternative import incident
 
+fields = list()
 pattern = Drawing((128,128), 9)
 pattern.circle((0,0), 0.45/2, 1)
-#pattern.rectangle((0,0), (1,0.5), 1)
-def get_crystals(kbz, twisted=False):
-    crystals = list()
-    if not twisted:
-        e = Expansion(pw)
-        for kp in kbz:
-            cl = Crystal(pw, epse=1)
-            ss = 2
-            cl.add_layer_uniform("S1", 1, 0.7/ss)
-            cl.add_layer_pixmap("Scyl", pattern.canvas(), 0.4)
-            cl.add_layer_uniform("S2", 1, 0.7/ss)
-            cl.set_stacking(["S1"])
-            cl.set_source(wl, np.nan, np.nan, kp=kp)
-            cl.solve()
-            crystals.append(cl)
-    else:
-        e1, e2 = Expansion(pw), Expansion(pw)
-        e2.rotate(twist_angle)
-        #e1.rotate(-twist_angle/2)
-        etw = e1 + e2
-        #etw._g_vectors = rot(-np.deg2rad(twist_angle)/2) @ etw.g_vectors
-        for kp in tqdm(kbz):
-            cl = Crystal.from_expansion(etw)
-            ss = 2
-            #cl.a = cell_size
-            cl.add_layer("Sref",  EL(etw, Layer.half_infinite(e1, "reflexion", 1),    e2.g_vectors, 1))
-            cl.add_layer("S1",    EL(etw, Layer.pixmap(e1, pattern.canvas(), 0.22/ss),    e2.g_vectors, 1))
-            cl.add_layer("Si",    EL(etw, Layer.uniform(e1, 1.0,  0.3/ss),               e2.g_vectors, 1))
-            cl.add_layer("Si2",   EL(etw, Layer.uniform(e2, 1.0,  1),               e1.g_vectors, 0))
-            cl.add_layer("S2",    EL(etw, Layer.pixmap(e2, pattern.canvas(), 0.22/ss),    e1.g_vectors, 0))
-            cl.add_layer("Strans",EL(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
-            cl.layers["Si2"].fields = True
-            cl.layers["Sref"].fields = True
-            cl.prepare_fields(3.4, 3.5)
-            stack = []
-            stack.extend(["S1"]*ss)
-            stack.extend(["Si"]*ss)
-            stack.extend(["S2"]*ss)
-            stack.extend(["Si2"]*4)
-            cl.set_stacking(stack)
-            cl.set_source(wl, np.nan, np.nan, kp=kp)
-            cl.solve()
-            crystals.append(cl)
-        e = etw
-    return crystals, e
-
-crystals, expansion = get_crystals(kbz, twisted=twisted)
-
-print("Solved crystals, memory at ", process.memory_info().rss/1024**3, "GB")
-
-'''
-    Sources computation
-'''
-x = np.linspace(0, cell_size*bzi, NS*bzi, endpoint=True)
-y = np.linspace(0, cell_size*bzi, NS*bzi, endpoint=True)
-X, Y = np.meshgrid(x,y, indexing="ij")
-Z = np.zeros_like(X)
-
-zmax = crystals[0].stack_positions[-2]
-print(f"Computing sources {zmax=}")
-source_real=shifted_rotated_fields(_paraxial_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, 1, theta,0.0*np.pi, 0.5*np.pi/2, beam_waist=3)
-#source_real = shifted_rotated_fields(_paraxial_laguerre_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, -1, theta, 0, np.pi/4, l=1, p=0, w0=0.7*cell_size)
-
-source_real = np.asarray(source_real)
-source_real = np.swapaxes(source_real, 0, 2)
-source_real = np.swapaxes(source_real, 1, 3)
-
-from bast.beams import amplitudes_from_fields
-Fs = list()
+e1, e2 = Expansion(pw), Expansion(pw)
+e2.rotate(twist_angle)
+etw = e1 + e2
 for kp in tqdm(kbz):
-     Fs.append(amplitudes_from_fields(source_real, expansion, wl, kp, X, Y, (bzi, bzi), a=cell_size))
-Fs=np.asarray(Fs)
+    cl = Crystal.from_expansion(etw)
+    ss = 2
+    #cl.a = cell_size
+    cl.add_layer("Sref",  EL(etw, Layer.half_infinite(e1, "reflexion", 1),    e2.g_vectors, 1))
+    cl.add_layer("S1",    EL(etw, Layer.pixmap(e1, pattern.canvas(), 0.22/ss),    e2.g_vectors, 1))
+    cl.add_layer("Si",    EL(etw, Layer.uniform(e1, 1.0,  0.3/ss),               e2.g_vectors, 1))
+    cl.add_layer("Si2",   EL(etw, Layer.uniform(e2, 1.0,  1.5),               e1.g_vectors, 0))
+    cl.add_layer("S2",    EL(etw, Layer.pixmap(e2, pattern.canvas(), 0.22/ss),    e1.g_vectors, 0))
+    cl.add_layer("Strans",EL(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
+    cl.layers["Si2"].fields = True
+    cl.layers["Sref"].fields = True
+    cl.prepare_fields(fdepth-0.1, fdepth+0.1)
+    stack = []
+    stack.extend(["S1"]*ss)
+    stack.extend(["Si"]*ss)
+    stack.extend(["S2"]*ss)
+    stack.extend(["Si2"]*4)
+    cl.set_stacking(stack)
+    cl.set_source(wl, np.nan, np.nan, kp=kp)
+    cl.solve()
+    expansion = etw
+
+    print("Solved crystal, memory at ", process.memory_info().rss/1024**3, "GB")
+
+    '''
+        Sources computation
+    '''
+    x = np.linspace(0, cell_size*bzi, NS*bzi, endpoint=True)
+    y = np.linspace(0, cell_size*bzi, NS*bzi, endpoint=True)
+    X, Y = np.meshgrid(x,y, indexing="ij")
+    Z = np.zeros_like(X)
+    
+    zmax = cl.stack_positions[-2]
+    print(f"Computing sources {zmax=}")
+    source_real=shifted_rotated_fields(_paraxial_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, 1, theta,0.0*np.pi, 0.5*np.pi/2, beam_waist=10)
+    #source_real = shifted_rotated_fields(_paraxial_laguerre_gaussian_field_fn, X, Y, Z, wl, np.max(x)/2, np.max(y)/2, -1, theta, 0, np.pi/4, l=1, p=0, w0=0.7*cell_size)
+    
+    source_real = np.asarray(source_real)
+    source_real = np.swapaxes(source_real, 0, 2)
+    source_real = np.swapaxes(source_real, 1, 3)
+    
+    F = amplitudes_from_fields(source_real, expansion, wl, kp, X, Y, (bzi, bzi), a=cell_size)
 
 
-Fs = [ np.split(F.flatten(), 2)[0] for F in Fs ]
-#Fs = [F.flatten() for F in Fs]
-'''
-    Compute the fields after the structure.
-'''
-#|x|x||x||x|x|
-x = np.linspace(1.5*cell_size, cell_size*(bzi-1.5), 128)
-y = np.linspace(1.5*cell_size, cell_size*(bzi-1.5), 128)
-#y = np.linspace(30, 60, 64)
-print(x[0], x[-1], cell_size*bzi)
-x, y = np.meshgrid(x, y, indexing="ij")
+    F = np.split(F.flatten(), 2)[0] 
+    x = np.linspace(2.5*cell_size, cell_size*(bzi-2.5), 256)
+    y = np.linspace(2.5*cell_size, cell_size*(bzi-2.5), 256)
+    #y = np.linspace(30, 60, 64)
+    print(x[0], x[-1], cell_size*bzi)
+    x, y = np.meshgrid(x, y, indexing="ij")
+    
+    print("Computing fields")
 
-print("Computing fields")
-from bast.alternative import incident
-fields = list()
-for c, F, kp in zip(tqdm(crystals), Fs, kbz):
-    #F = incident(c.expansion.pw, 1, 1, kp)
-    E, H = c.fields_coords_xy(x, y, 3.5, F, use_lu=False)
+    E, H = cl.fields_coords_xy(x, y, fdepth, F, use_lu=False)
     fields.append((E, H))
+
 fields = np.asarray(fields)
 np.savez_compressed("tw_fields.npz", fields)
 
@@ -203,7 +173,7 @@ fig, axs = plt.subplots(2, 2, figsize=(5,5))
 normfields = np.abs(fields)
 normfields /= np.max(normfields)
 #np.abs
-image = axs[0,0].matshow(fields.real**2, cmap="hot",extent=[np.min(x), np.max(x), np.min(x), np.max(y)]) #, vmin=-1, vmax=1
+image = axs[0,0].matshow(np.abs(fields), cmap="hot",extent=[np.min(x), np.max(x), np.min(x), np.max(y)]) #, vmin=-1, vmax=1
 plt.colorbar(image)
 image = axs[0,1].matshow(np.angle(fields), cmap="hsv",extent=[0, np.max(x), 0, np.max(y)], alpha=normfields, vmin=-np.pi, vmax=np.pi) #, vmin=-1, vmax=1
 normsr = np.abs(sr)
