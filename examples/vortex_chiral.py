@@ -92,9 +92,6 @@ from bast.alternative import incident
 fields = list()
 pattern = Drawing((128,128), 9)
 pattern.circle((0,0), 0.45/2, 1)
-e1, e2 = Expansion(pw), Expansion(pw)
-e2.rotate(twist_angle)
-etw = e1 + e2
 for kp in tqdm(kbz):
     cl = Crystal.from_expansion(etw)
     ss = 2

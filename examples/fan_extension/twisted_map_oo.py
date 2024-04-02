@@ -11,7 +11,7 @@ import numpy as np
 import logging
 #logging.getLogger().setLevel(logging.DEBUG)
 
-pw = (7,7)
+pw = (3,3)
 N = 256
 canvas_size = (N,N)
 pattern = Drawing(canvas_size, 4)
@@ -45,7 +45,8 @@ if action == "spectrum":
         R, T = tc.poynting_fluxes_end()
         spectrum.append((R,T))
     plt.plot(spectrum)
-    plt.show()
+    plt.savefig("debug.png")
+
 elif action == "map":
     from bast.misc import str2linspace_args
     from itertools import product
@@ -67,13 +68,15 @@ elif action == "fields":
     frequency = float(sys.argv[3])
     tc.solve(twist_angle, 1/frequency)
     tc.plot_lattice()
-    zs = np.linspace(0,0.2,64)
+    zs = np.linspace(0,0.2,32)
     E3D = list()
     for z in zs:
         E, H = tc.fields_xy(z, 1/frequency)
         E3D.append(E)
     Enorm = np.linalg.norm(E3D, axis=1)
-    plt.matshow(Enorm[:, :,64], cmap="hot")
-    plt.show()
+    fig, (ax1, ax2) = plt.subplots(2,1)
+    ax1.matshow(Enorm[:, :,64], cmap="hot")
+    ax2.matshow(Enorm[:, 64,:], cmap="hot")
+    fig.savefig("Figures/twisted_fields.png")
 
     

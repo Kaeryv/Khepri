@@ -6,3 +6,10 @@ __pycache__/
 *.whl
 build/
 *.png
+*.csv
+*.png
+*.sh
+*.npz
+*.pkl
+*.gif
+*.svg

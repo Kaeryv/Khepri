@@ -16,7 +16,7 @@ from bast.tools import rotation_matrix as rot
 '''
     Parameters
 '''
-pw = (5,1)
+pw = (3,1)
 N = 256
 polarization = (1, -1j) # norm
 theta = 0
@@ -26,8 +26,10 @@ phi = 0
     Define the pattern (common to both layers)
 '''
 canvas_size = (N,1)
-pattern = Drawing(canvas_size, 4)
-pattern.rectangle((0,0), (0.5, 1), 1.0)
+pattern = Drawing(canvas_size, 1)
+pattern.rectangle((0,0), (0.2, 1), 13.0)
+pattern = Drawing(canvas_size, 1)
+pattern.rectangle((,0), (0.2, 1), 13.0)
 pattern.plot("figs/Woodpile_Pattern.png")
 
 def solve_rt(frequency, angle_deg):
@@ -42,15 +44,17 @@ def solve_rt(frequency, angle_deg):
     twcl = Crystal.from_expansion(e1+e2)
     etw = twcl.expansion
     twcl.add_layer("Sref",     ExtendedLayer(etw, Layer.half_infinite(e1, "reflexion", 1),    e2.g_vectors, 1))
-    twcl.add_layer("Scylup",   ExtendedLayer(etw, Layer.pixmap(e1, pattern.canvas(), 0.2),    e2.g_vectors, 1))
-    twcl.add_layer("Sair",     ExtendedLayer(etw, Layer.uniform(e1, 1.0, 0.3),                e2.g_vectors, 1))
-    twcl.add_layer("Scyldo",   ExtendedLayer(etw, Layer.pixmap(e2, pattern.canvas(), 0.2),    e1.g_vectors, 0))
+    twcl.add_layer("x",   ExtendedLayer(etw, Layer.pixmap(e1, pattern.canvas(), 0.3),    e2.g_vectors, 1))
+    twcl.add_layer("xp",   ExtendedLayer(etw, Layer.pixmap(e1, pattern2.canvas(), 0.3),    e2.g_vectors, 1))
+    #twcl.add_layer("Sair",     ExtendedLayer(etw, Layer.uniform(e1, 1.0, 0.3),                e2.g_vectors, 1))
+    twcl.add_layer("y",   ExtendedLayer(etw, Layer.pixmap(e2, pattern.canvas(), 0.3),    e1.g_vectors, 0))
+    twcl.add_layer("yp",   ExtendedLayer(etw, Layer.pixmap(e2, pattern2.canvas(), 0.3),    e1.g_vectors, 0))
     twcl.add_layer("Strans",   ExtendedLayer(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
 
     '''
         Define the device and solve.
     '''
-    device = ["Scylup","Scyldo"]
+    device = ["x","y", "x2", "y2", "x"] # , "Scylup"
     twcl.set_stacking(device)
     twcl.set_source(1/frequency, polarization[0], polarization[1], theta, phi)
     twcl.solve()
@@ -58,19 +62,28 @@ def solve_rt(frequency, angle_deg):
     return twcl.poynting_flux_end()
 
 NF=101
-NA = 100
+NA = 40
 if sys.argv[1] == "c":
+    angles = np.linspace(45, 90, NA)
     frequencies = np.linspace(0.7, 0.98, NF)
-    angles = np.linspace(0, 90, NA)
     from itertools import product
     RT = list()
-    for i, (f, a) in enumerate(product(frequencies, angles)):
+    for i, (f, a) in enumerate(tqdm(list(product(frequencies, angles)))):
         RT.append(solve_rt(f, a))
-    np.savez_compressed("woodpile2.npz", RT=RT, NA=NA, NF=NF)
+    np.savez_compressed("woodpile2.npz", RT=RT, F=frequencies, A=angles)
 elif sys.argv[1] == "p":
-    RT = np.load(sys.argv[2])["RT"]
+    data = np.load(sys.argv[2])
+    RT = data["RT"]
+    frequencies = data["F"]
+    angles = data["A"]
+    NF = len(frequencies)
+    NA = len(angles)
     R = np.reshape(RT, (NF, NA, 2))[...,0]
-    R = np.reshape(RT, (NF, NA, 2))[...,1]
-    fig, ax = plt.subplots()
-    ax.matshow(R.real, origin="lower")
+    T = np.reshape(RT, (NF, NA, 2))[...,1]
+    fig, (ax1, ax2) = plt.subplots(2)
+    extent = [np.min(angles), np.max(angles), np.min(frequencies), np.max(frequencies)]
+    ax1.matshow(T.real, origin="lower", vmin=0, vmax=1, aspect=60, extent=extent)
+    ax2.plot(frequencies, T[:, -1], color="r", label="Transmission")
+    ax2.plot(frequencies, R[:, -1], color="b", label="Reflexion")
+    plt.legend()
     fig.savefig("figs/Woodpile_R.png")

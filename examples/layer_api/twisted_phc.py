@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 #logging.getLogger().setLevel(logging.DEBUG)
 
-pw = (5, 5)
+pw = (3, 3)
 N = 256
 canvas_size = (N,N)
 pattern = Drawing(canvas_size, 4)
@@ -83,13 +83,13 @@ def solve_rt(freq, angle_deg):
     etw, Stot, _ = solve(freq, angle_deg)
 
     # Let's propagate a plane wave and get RT
-    esrc = incident(etw.pw, 0, 1, k_vector=(0, 0, k0))
+    esrc = incident(etw.pw, 1, 1j, k_vector=(0, 0, k0))
    
     S21, S11 = Stot[1,0], Stot[0,0]
     return poynting_fluxes(etw, S11 @ esrc, (0,0), 1/freq), poynting_fluxes(etw, S21 @ esrc, (0,0), 1/freq)
 
 from bast.fields import layer_eigenbasis_matrix, translate_mode_amplitudes2, fourier2real_xy
-from bast.fields import fourier_fields_from_mode_amplitudes, fourier_fields_from_mode_amplitudes_lu
+from bast.fields import fourier_fields_from_mode_amplitudes
 from bast.alternative import free_space_eigenmodes, scattering_identity
 from math import prod
 
@@ -164,7 +164,7 @@ elif action == "map":
     spectrum = []
     for a, f in tqdm(list(af)):
         spectrum.append(solve_rt(f, a))
-    np.savez_compressed("spectrum.npz", T=np.reshape(spectrum, (len(angles), len(freqs), 2))[:,:,1].T, angles=angles, freqs=freqs)
+    np.savez_compressed(f"spectrum_{pw[0]}.npz", T=np.reshape(spectrum, (len(angles), len(freqs), 2))[:,:,1].T, angles=angles, freqs=freqs)
 
 elif action == "plotmap":
     d = np.load(sys.argv[2])
