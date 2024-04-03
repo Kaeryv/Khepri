@@ -20,39 +20,7 @@ from scipy.linalg import block_diag
 from .tools import unitcellarea
 import logging
 
-
-def scat_base_transform(S, U):
-    S[0,0] = U @ S[0,0] @ inv(U)
-    S[0,1] = U @ S[0,1] @ inv(U)
-    S[1,0] = U @ S[1,0] @ inv(U)
-    S[1,1] = U @ S[1,1] @ inv(U)
-    return S
-from scipy.sparse.linalg import spsolve
-from scipy.sparse import csc_matrix
-def redheffer_product_csc(SA, SB):
-    I = csc_matrix(np.eye(SA[0][0].shape[0], dtype=np.complex128))
-    D = I - SB[0][0] @ SA[1][1]
-    F = I - SA[1][1] @ SB[0][0]
-    #D[np.abs(D)< 1e-9] = 0
-    #F[np.abs(F)< 1e-9] = 0
-    #D =csc_matrix(D)
-    #F =csc_matrix(F)
-
-    S11 = SA[0][0] + SA[0][1] @ spsolve(D, SB[0][0]) @ SA[1][0]
-    S12 = SA[0][1] @ spsolve(D, SB[0][1])
-    S21 = SB[1][0] @ spsolve(F, SA[1][0])
-    S22 = SB[1][1] + SB[1][0] @ spsolve(F, SA[1][1]) @ SB[0][1]
-    
-    S = [[S11, S12], [S21, S22]]
-    return S
 def redheffer_product(SA, SB):
-    #if isinstance(SA, list) or isinstance(SB, list):
-    #    if not isinstance(SA, list):
-    #        SA = [ [ csc_matrix(sij) for sij in Si ] for Si in SA]
-    #    if not isinstance(SB, list):
-    #        SB = [ [ csc_matrix(sij) for sij in Si ] for Si in SB]
-    #    return redheffer_product_csc(SA,SB)
-
     I = np.eye(SA[0,0].shape[0], dtype=np.complex128)
     D = I - SB[0,0] @ SA[1,1]
     F = I - SA[1,1] @ SB[0,0]
@@ -70,24 +38,18 @@ def scattering_reflection(KX, KY, W0, V0, er, ur=1):
     I = np.eye(KX.shape[0])
     KX = np.diag(KX)
     KY = np.diag(KY)
-    # Pref = np.vstack([
-    #     np.hstack([KX @ KY,     I - KX @ KX]),
-    #     np.hstack([KY @ KY - I,    -KY @ KX]),
-    # ])
+
     Qref = np.vstack([
         np.hstack([KX @ KY,          er*ur*I - KX @ KX]),
         np.hstack([KY @ KY - er*ur*I,        - KY @ KX]),
     ]) / ur
-    arg = (ur*er*I-KX**2-KY**2); #arg is kz^2
+
+    arg = (ur*er*I-KX**2-KY**2);
     arg = np.diag(arg)
     arg = arg.astype('complex')
     Kz = np.conj(csqrt(arg))
     eigenvals = np.hstack((1j*Kz, 1j*Kz))
     Wref = np.identity(2*N)
-    # Solve the eigen problem
-    # eigenvals, Wref = np.linalg.eig(Pref @ Qref)
-    # eigenvals = csqrt(eigenvals)
-    # inv_lambda = np.diag(np.reciprocal(eigenvals))
     Vref = Qref / eigenvals
     A = solve(W0, Wref) + solve(V0, Vref)
     B = solve(W0, Wref) - solve(V0, Vref)
@@ -138,14 +100,13 @@ def free_space_eigenmodes(KX, KY):
     P = np.block([[KX*KY, I-KX**2], [KY**2-I, -KY*KX]])
     Q = P
     W = np.identity(2*N)
-    arg = (I-KX**2-KY**2); #arg is kz^2
-    arg = arg.astype('complex')
+    arg = (I-KX**2-KY**2).astype('complex')
     arg = np.diag(arg)
-    Kz = np.conj(csqrt(arg)); #conjugate enforces the negative sign convention (we also have to conjugate er and mur if they are complex)
+    Kz = np.conj(csqrt(arg));
     eigenvalues = np.hstack((1j*Kz, 1j*Kz))
     #mask = np.logical_or(eigenvalues.imag < 0.0, np.logical_and(np.isclose(eigenvalues.imag, 0.0), eigenvalues.real < 0.0))
     #np.negative(eigenvalues, where=mask, out=eigenvalues)
-    V = Q / eigenvalues; #eigenvalue order is arbitrary (hard to compare with matlab
+    V = Q / eigenvalues; 
     return W, V
 
 def kz_from_kplanar(kx, ky, k0, epsilon):
@@ -154,98 +115,6 @@ def kz_from_kplanar(kx, ky, k0, epsilon):
     #mask = np.logical_or(kz.imag < 0.0, np.logical_and(np.isclose(kz.imag, 0.0), kz.real < 0.0))
     #np.negative(kz, where=mask, out=kz)
     return kz
-
-# def generate_expansion_vectors(pw, a):
-#     '''
-#         Note: multiply by reciprocal lattice basis for @hex
-#     '''
-#     M = (pw[0] - 1) // 2
-#     m = np.arange(-M, M+1)
-#     gx = 2 * pi * m / a
-#     gy = 2 * pi * m / a
-#     gx, gy = np.meshgrid(gx, gy)
-#     return - gx.flatten().astype(np.complex128),  - gy.flatten().astype(np.complex128)
-
-# class Lattice:
-#     def __init__(self, pw, a,  wavelength, kp=(0,0), rotation=0, compute_eigenmodes=True, eps_incident=1.0, truncate=False):
-#         self.pw = pw
-#         self.kp = kp
-#         self.k0 = 2 * pi / wavelength
-#         self.a = a
-#         self.gx, self.gy = generate_expansion_vectors(pw, a)
-#         self.eps_incident = eps_incident
-
-#         if rotation != 0:
-#             R = rotation_matrix(rotation)
-#             for i, (gx, gy) in enumerate(zip(self.gx, self.gy)):
-#                 gxr, gyr = R @ [gx, gy]
-#                 self.gx[i] = gxr
-#                 self.gy[i] = gyr
-#             #self.gx, self.gy =   R @ self.g_vectors
-        
-#         self.kx, self.ky = kp[0] + self.gx, kp[1] + self.gy
-
-#         if truncate:
-#             mx, my = self.gx / 2/np.pi*a, self.gy / 2/np.pi*a
-#             M = (pw[0] - 1) // 2
-#             self.trunctation = (mx**2+my**2) <= M**2
-#         else:
-#             self.trunctation = np.ones_like(self.kx, dtype=bool)
-
-#         self.kx = self.kx[self.trunctation]
-#         self.ky = self.ky[self.trunctation]
-
-#         self.kz = kz_from_kplanar(self.kx, self.ky, self.k0, self.eps_incident)
-
-#         # Normalize wrt k0 (magnitude of incident k-vector) and create matrices
-#         self.Kx = np.diag(self.kx / self.k0) 
-#         self.Ky = np.diag(self.ky / self.k0) 
-#         self.Kz = np.diag(self.kz / self.k0)
-
-#         # Eigen modes of free space
-#         if compute_eigenmodes:
-#             self.W0, self.V0 = free_space_eigenmodes(self.Kx, self.Ky)
-
-#     @property
-#     def g_vectors(self):
-#         return np.vstack((self.gx, self.gy))
-
-#     def __add__(self, rhs):
-#         pw = self.pw
-#         #g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=np.complex128)
-#         gr = list()
-#         #g2 = np.array(list(rhs.g_vectors.T))
-#         for j, g2 in enumerate(rhs.g_vectors.T):
-#             for i, g1 in enumerate(self.g_vectors.T):
-#                 gr.append(g1+g2)
-#         gr = np.asarray(gr)
-#         l = Lattice((self.pw[0]**2, self.pw[1]**2), np.nan, np.nan, (0,0), 0, False)
-#         l.gx = gr[:, 0]
-#         l.gy = gr[:, 1]
-#         l.k0 = self.k0
-#         #    g[i, :, :] = g1.reshape(1, 2) + g2
-        
-#         #l.gx = g[:, :, 0].flatten()
-#         #l.gy = g[:, :, 1].flatten()
-
-#         l.kx, l.ky = self.kp[0] + l.gx, self.kp[1] + l.gy
-
-
-#         l.kz = kz_from_kplanar(l.kx, l.ky, l.k0, self.eps_incident)
-
-#         # Normalize wrt k0 (magnitude of incident k-vector) and create matrices
-#         l.Kx = np.diag(l.kx / l.k0) 
-#         l.Ky = np.diag(l.ky / l.k0) 
-#         l.Kz = np.diag(l.kz / l.k0)
-
-#         # Eigen modes of free space
-#         l.W0, l.V0 = free_space_eigenmodes(l.Kx, l.Ky)
-#         return l
-    
-#     @property
-#     def area(self):
-#         return unitcellarea((self.a,0), (0, self.a))
-
 
 def incident(pw, p_pol, s_pol, k_vector):
     logging.debug(f"Building vector with plane wave {pw=}, {p_pol=}, {s_pol=}, {k_vector=}")
@@ -375,7 +244,6 @@ def scattering_identity(pw, block=False):
 
 def poynting_fluxes(expansion, c_output, kp, wavelength):
     epsi=1
-    #k0 = lattice.k0
     k0 = 2 * np.pi / wavelength
     kzi = np.conj(csqrt(k0**2*epsi-kp[0]**2-kp[1]**2))
     sx, sy = np.split(c_output, 2)
