@@ -11,6 +11,7 @@ from bast.crystal import Crystal
 from tqdm import tqdm
 from bast.misc import coords
 from bast.tools import rotation_matrix as rot
+from glob import glob
 
 '''
     Define the pattern (common to both layers)
@@ -22,7 +23,7 @@ pattern.circle((0,0), 0.25, 1.0)
     Define the crystal layers. 
     Be careful that layers with different twist angles are different objects.
 '''
-def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3)):
+def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3), fields=False):
     e1 = Expansion(pw)
     e2 = Expansion(pw)
     e2.rotate(twist_angle)
@@ -35,7 +36,10 @@ def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3)):
     twcl.add_layer("Scdo", Layer.pixmap(e2, pattern.canvas(), 0.2), True)
     twcl.add_layer("Strans", Layer.half_infinite(e2, "transmission", 1), True)
 
-    twcl.set_device(["Scup", "Sair", "Scdo"])
+    if fields:
+        twcl.set_device(["Scup", "Sair", "Scdo"], [True]*3)
+    else:
+        twcl.set_device(["Scup", "Sair", "Scdo"])
     twcl.set_source(wl, polar[0], polar[1], theta, phi)
     twcl.solve()
     return twcl
@@ -55,13 +59,29 @@ if sys.argv[1] == "RT":
     if len(sys.argv) >= 5:
         np.save(sys.argv[4], RT)
 
-if sys.argv[1] == "longitudinal_fields":
+if sys.argv[1] == "map":
+    pattern = sys.argv[2]
+    files = glob(pattern)
+    num_angles = len(files)
+    rtmap = list()
+    for i in range(num_angles):
+        rtmap.append(np.load(pattern.replace("*", str(i))))
+    rtmap = np.asarray(rtmap).reshape(num_angles, -1, 2)
+    fig, ax = plt.subplots()
+    ax.matshow(rtmap[..., 0])
+    fig.savefig(sys.argv[3])
+
+
+if sys.argv[1] == "lg_fields":
     '''
         Get those fields in longitudinal plane.
     '''
+    wl = 1 / 0.7
+    ta = 6
+    twcl = solve_crystal(wl, ta, polar=(1,1), pw=(5,5), fields=True)
 
     x, y, z = coords(0, 12, 0.5, 0.5, 1e-7, 1.5, (256, 1, 64))
-    E, H = twcl.fields_volume2(x, y, tqdm(z)) # Progress bar on z axis
+    E, H = twcl.fields_volume(x, y, tqdm(z)) # Progress bar on z axis
     E = np.squeeze(E)
 
     '''
@@ -91,7 +111,7 @@ if sys.argv[1] == "longitudinal_fields":
     plt.xlabel("x[µm]")
     plt.ylabel("z[µm]")
     plt.gca().set_position([0.05, 0.05, 0.95, 0.95])
-    plt.savefig("twited_fields.png")
+    plt.savefig(sys.argv[2])
 
 
 if False:
