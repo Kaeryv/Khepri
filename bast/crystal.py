@@ -18,6 +18,7 @@ from bast.layer import stack_layers
 
 from scipy.linalg import lu_factor
 from numpy.linalg import solve
+from bast.extension import ExtendedLayer as EL
 
 class Crystal():
     def __init__(self, pw, a=1, void=False, epsi=1, epse=1) -> None:
@@ -50,8 +51,11 @@ class Crystal():
         '''
         self.layers[name] = Layer.pixmap(self.expansion, epsilon, depth)
 
-    def add_layer(self, name, layer):
-        self.layers[name] = layer
+    def add_layer(self, name, layer, extended=False):
+        if extended:
+            self.layers[name] = EL(self.expansion, layer)
+        else:
+            self.layers[name] = layer
 
     def set_stacking(self, stack):
         '''
@@ -80,11 +84,15 @@ class Crystal():
     def solve(self):
         # Solving the required layers
         required_layers = set(self.global_stacking)
-        if not self.void and "Sref" not in self.layers:
+        if "Sref" not in required_layers:
             self.layers["Sref"] = Layer.half_infinite(self.expansion, "reflexion", self.epsi)
+            self.layers["Sref"].fields = True
+        if "Strans" not in required_layers:
             self.layers["Strans"] = Layer.half_infinite(self.expansion, "transmission", self.epse)
+            self.layers["Strans"].fields = True
         for name in required_layers:
             self.layers[name].solve(self.kp, self.source.wavelength)
+
 
         # The stack is built this way:
         # If reflexion side is on the left, the position is on the right, after the layer.

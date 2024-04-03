@@ -4,7 +4,6 @@ from math import cos, sin
 from typing import Tuple
 
 import numpy as np
-from numpy.lib.stride_tricks import as_strided
 
 from scipy.linalg import norm
 
@@ -155,16 +154,6 @@ def rotation_matrix(theta):
     return np.array([[cos(theta), -sin(theta)], [sin(theta), cos(theta)]])
 
 
-def joint_subspace(submatrices: list, kind=0):
-    '''
-        Wrapper of _joint_subspace that processes 4 quadrants of smatrix
-    '''
-    output = [[None, None], [None, None]]
-    for i in range(2):
-        for j in range(2):
-            output[i][j] = _joint_subspace([ sm[i,j].copy() for sm in submatrices], kind=kind)
-    
-    return np.asarray(output)
 
 def block2dense(block_matrix):
     blocks_shape = block_matrix.shape[0:2]
@@ -173,38 +162,6 @@ def block2dense(block_matrix):
     print("Reshaping", block_matrix.shape, "to", dense.shape)
     return dense.reshape([blocks_shape[i]*submatrices_shape[i] for i in [0,1]])
 
-def _joint_subspace(submatrices: list, kind=0):
-    """
-    Join scattering matrices into larger common space.
-    
-    Parameters
-    ----------
-    submatrices: list
-        Input submatrices
-    kind: int
-        Merging mode, still difficult to summarize
-
-    Source
-    ------
-    Theory for Twisted Bilayer Photonic Crystal Slabs
-    Beicheng Lou, Nathan Zhao, Momchil Minkov, Cheng Guo, Meir Orenstein, and Shanhui Fan
-    https://doi.org/10.1103/PhysRevLett.126.136101
-    """
-    N = submatrices[0].shape[0] // 2
-    result = np.zeros((2*N**2, 2*N**2), dtype=submatrices[0].dtype)
-    ds = result.strides[-1]
-
-    if kind == 0:
-        strides = (ds*e for e in (2*N**4,N**2,2*N**3+N, 2*N**2, 1))
-    else:
-        strides = (ds*e for e in (2*N**4,N**2,2*N**2+1, 2*N**3, N))
-    view = as_strided(result, (2, 2, N, N, N), strides)
-    # (BLOCKS, BLOCKS, MATRICES, INNER, INNER)
-    import matplotlib.pyplot as plt
-    for i, smat in enumerate(submatrices):
-        view_smat = as_strided(smat, (2, 2, N, N), (ds*e for e in (2*N**2,N, 2*N, 1)))
-        view[:, :, i] = view_smat
-    return result
 
 from math import prod, floor
 from itertools import product

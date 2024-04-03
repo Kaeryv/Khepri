@@ -2,7 +2,6 @@ import sys
 sys.path.append(".")
 
 from bast.crystal import Crystal
-from bast.extension import ExtendedLayer
 from bast.draw import Drawing
 from bast.expansion import Expansion
 from bast.layer import Layer
@@ -16,7 +15,7 @@ from bast.tools import rotation_matrix as rot
 '''
     Parameters
 '''
-pw = (5,5)
+pw = (3,3)
 N = 256
 frequency = 1/1.35 # c/a
 angle_deg = 6.76    # deg
@@ -40,33 +39,38 @@ e2 = Expansion(pw)
 e2.rotate(angle_deg)
 
 '''
-    Define the crystal layers. (Be careful that layers with different twist angles are different objects.)
+    Define the crystal layers. 
+    Be careful that layers with different twist angles are different objects.
 '''
 twcl = Crystal.from_expansion(e1+e2)
 etw = twcl.expansion
-twcl.add_layer("Sref",     
-    ExtendedLayer(etw, Layer.half_infinite(e1, "reflexion", 1),  e2.g_vectors, 1))
-twcl.add_layer("Scylup",   
-    ExtendedLayer(etw, Layer.pixmap(e1, pattern.canvas(), 0.2),  e2.g_vectors, 1))
-twcl.add_layer("Sair",
-    ExtendedLayer(etw, Layer.uniform(e1, 1.0, 0.3),              e2.g_vectors, 1))
-twcl.add_layer("Scyldo",   
-    ExtendedLayer(etw, Layer.pixmap(e2, pattern.canvas(), 0.2),  e1.g_vectors, 0))
-#twcl.add_layer("Sbuffer2", 
-#    ExtendedLayer(etw, Layer.uniform(e2, 1.0, 0.4),              e1.g_vectors, 0))
-twcl.add_layer("Strans",   
-    ExtendedLayer(etw, Layer.half_infinite(e2, "transmission", 1), e1.g_vectors, 0))
+twcl.add_layer("Sref",   Layer.half_infinite(e1, "reflexion", 1), True)
+twcl.add_layer("Scup", Layer.pixmap(e1, pattern.canvas(), 0.2), True)
+twcl.add_layer("Sair",   Layer.uniform(e1, 1.0, 0.3), True)
+twcl.add_layer("Scdo", Layer.pixmap(e2, pattern.canvas(), 0.2), True)
+twcl.add_layer("Strans", Layer.half_infinite(e2, "transmission", 1), True)
 
 '''
     Define the device and solve.
 '''
-device = ["Scylup", "Sair", "Scyldo"]
+device = ["Scup", "Sair", "Scdo"]
 twcl.set_stacking(device)
+twcl.fields_interval = (-1,0)
 twcl.set_source(1/frequency, polarization[0], polarization[1], theta, phi, kp=kp)
 twcl.solve()
 zmax = twcl.stack_positions[-2]
 
 print("Solved crystal")
+
+if True:
+    RT = list()
+    for f in np.linspace(0.7, 0.83, 100):
+        twcl.set_source(1/f, polarization[0], polarization[1], theta, phi, kp=kp)
+        twcl.solve()
+        RT.append(twcl.poynting_flux_end())
+
+    plt.plot(RT)
+    plt.savefig("debug.png")
 
 if False:
     '''
@@ -107,7 +111,7 @@ if False:
     plt.savefig("twited_fields.png")
 
 
-if True:
+if False:
     '''
         Get those fields in transversal plane
     '''

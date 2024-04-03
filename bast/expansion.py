@@ -9,6 +9,8 @@ def generate_expansion_indices(pw):
         ndarray.shape = (2, prod(pw))
         Note: multiply by reciprocal lattice basis for @hex
     '''
+    assert pw[0] % 2 == 1
+    assert pw[1] % 2 == 1
     M = (pw[0] - 1) // 2
     N = (pw[1] - 1) // 2
     m = np.arange(-M, M+1)
@@ -16,16 +18,11 @@ def generate_expansion_indices(pw):
     return np.vstack([e.flat for e in np.meshgrid(m, n)])
 
 def kz_from_kplanar(kx, ky, k0, epsilon):
-    arg = k0**2*epsilon-kx**2-ky**2
+    arg = k0**2*epsilon - kx**2 - ky**2
     kz = np.conj(np.sqrt(arg.astype("complex")))
     mask = np.logical_or(kz.imag < 0.0, np.logical_and(np.isclose(kz.imag, 0.0), kz.real < 0.0))
     np.negative(kz, where=mask, out=kz)
     return kz
-
-
-class Truncation:
-    NONE=0
-    DISC=1
 
 class Expansion:
     def __init__(self, pw, a=1.0) -> None:
@@ -42,9 +39,6 @@ class Expansion:
         self._k_vectors[2, :] = kz_from_kplanar(*self._k_vectors[0:2, :], k0, 1.0)
         self._k_vectors /= k0
 
-
-
-
     def rotate(self, angle_deg):
         self._g_vectors = rotation_matrix(np.deg2rad(angle_deg)) @ self._g_vectors
 
@@ -53,17 +47,19 @@ class Expansion:
             Produces a new expansion that is the Minkowski sum of the two expansions self and rhs.
         '''
         g_sum = np.empty((2, self.g_vectors.shape[1]*rhs.g_vectors.shape[1]))
-        i_sum = np.empty((2, self.g_vectors.shape[1]*rhs.g_vectors.shape[1]))
+        
         i = 0
-        for g2, i2 in zip(rhs.g_vectors.T, rhs.expansion_indices.T):
-            for g1, i1 in zip(self.g_vectors.T, self.expansion_indices.T):
+        for i2, g2 in enumerate(rhs.g_vectors.T):
+            for i1, g1 in enumerate(self.g_vectors.T):
                 g_sum[:, i] = g1 + g2
-                i_sum[:, i] = i1 + i2
                 i += 1
+
         pw_sum = (self.pw[0]**2, self.pw[1]**2)
         e = Expansion(pw_sum)
-        e.expansion_indices = i_sum
         e._g_vectors = g_sum
+        e._base_g_vectors = np.stack((self.g_vectors, rhs.g_vectors))
+        e.expansion_lhs = self
+        e.expansion_rhs = rhs
         return e
 
     @property
