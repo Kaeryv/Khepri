@@ -13,66 +13,48 @@ from bast.misc import coords
 from bast.tools import rotation_matrix as rot
 
 '''
-    Parameters
-'''
-pw = (3,3)
-N = 256
-frequency = 1/1.35 # c/a
-angle_deg = 6.76    # deg
-polarization = (1, 1) # norm
-theta = 0
-phi = 0
-kp=None
-
-'''
     Define the pattern (common to both layers)
 '''
-canvas_size = (N,N)
-pattern = Drawing(canvas_size, 4)
+pattern = Drawing((256,256), 4)
 pattern.circle((0,0), 0.25, 1.0)
-
-'''
-    Define the twist.
-'''
-e1 = Expansion(pw)
-e2 = Expansion(pw)
-e2.rotate(angle_deg)
 
 '''
     Define the crystal layers. 
     Be careful that layers with different twist angles are different objects.
 '''
-twcl = Crystal.from_expansion(e1+e2)
-etw = twcl.expansion
-twcl.add_layer("Sref",   Layer.half_infinite(e1, "reflexion", 1), True)
-twcl.add_layer("Scup", Layer.pixmap(e1, pattern.canvas(), 0.2), True)
-twcl.add_layer("Sair",   Layer.uniform(e1, 1.0, 0.3), True)
-twcl.add_layer("Scdo", Layer.pixmap(e2, pattern.canvas(), 0.2), True)
-twcl.add_layer("Strans", Layer.half_infinite(e2, "transmission", 1), True)
+def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3)):
+    e1 = Expansion(pw)
+    e2 = Expansion(pw)
+    e2.rotate(twist_angle)
 
-'''
-    Define the device and solve.
-'''
-device = ["Scup", "Sair", "Scdo"]
-twcl.set_stacking(device)
-twcl.fields_interval = (-1,0)
-twcl.set_source(1/frequency, polarization[0], polarization[1], theta, phi, kp=kp)
-twcl.solve()
-zmax = twcl.stack_positions[-2]
+    twcl = Crystal.from_expansion(e1+e2)
+    etw = twcl.expansion
+    twcl.add_layer("Sref",   Layer.half_infinite(e1, "reflexion", 1), True)
+    twcl.add_layer("Scup", Layer.pixmap(e1, pattern.canvas(), 0.2), True)
+    twcl.add_layer("Sair",   Layer.uniform(e1, 1.0, 0.3), True)
+    twcl.add_layer("Scdo", Layer.pixmap(e2, pattern.canvas(), 0.2), True)
+    twcl.add_layer("Strans", Layer.half_infinite(e2, "transmission", 1), True)
 
-print("Solved crystal")
+    device = ["Scup", "Sair", "Scdo"]
+    twcl.set_device(device)
+    twcl.set_source(wl, polar[0], polar[1], theta, phi)
+    twcl.solve()
+    return twcl
 
-if True:
-    RT = list()
-    for f in np.linspace(0.7, 0.83, 100):
-        twcl.set_source(1/f, polarization[0], polarization[1], theta, phi, kp=kp)
-        twcl.solve()
-        RT.append(twcl.poynting_flux_end())
+if sys.argv[1] == "RT":
+    M = 60
+    RT = np.zeros((M,2))
+    angle = float(sys.argv[3])
+    for i, f in enumerate(np.linspace(0.7, 0.83, M)):
+        twcl = solve_crystal(1/f, angle)
+        RT[i] = twcl.poynting_flux_end()
 
-    plt.plot(RT)
-    plt.savefig("debug.png")
+    fig, ax = plt.subplots()
+    ax.plot(RT[:, 0], label="R")
+    ax.plot(RT[:, 1], label="T")
+    fig.savefig(sys.argv[2])
 
-if False:
+if sys.argv[1] == "longitudinal_fields":
     '''
         Get those fields in longitudinal plane.
     '''
@@ -116,6 +98,7 @@ if False:
         Get those fields in transversal plane
     '''
     #etw.plot()
+    zmax = twcl.stack_positions[-2]
     depth = 0.35#zmax+0.9
     w = 6
     x, y, z = coords(-w, w, -w, w, depth, depth, (512, 512, 1))

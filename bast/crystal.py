@@ -1,35 +1,32 @@
 import logging
-from collections import namedtuple
+
 from types import SimpleNamespace
-from .tools import compute_kplanar
-from .alternative import (scattering_identity, 
-    redheffer_product, incident, poynting_fluxes,
-    free_space_eigenmodes)
 from copy import copy
 from cmath import sqrt as csqrt
+
 import numpy as np
-from bast.layer import Layer, Formulation
-from bast.expansion import Expansion
-
-from bast.fields import translate_mode_amplitudes2, fourier_fields_from_mode_amplitudes,fourier2real_fft, layer_eigenbasis_matrix
-from typing import Tuple
-from bast.fields import fourier2real_xy, longitudinal_fields
-from bast.layer import stack_layers
-
 from scipy.linalg import lu_factor
 from numpy.linalg import solve
-from bast.extension import ExtendedLayer as EL
+
+from .tools import compute_kplanar
+from .alternative import (scattering_identity, incident, poynting_fluxes, free_space_eigenmodes)
+from .layer import Layer
+from .expansion import Expansion
+
+from .fields import translate_mode_amplitudes2, fourier_fields_from_mode_amplitudes,fourier2real_fft, layer_eigenbasis_matrix
+from .fields import fourier2real_xy, longitudinal_fields
+from .layer import stack_layers
+
+from .extension import ExtendedLayer as EL
 
 class Crystal():
     def __init__(self, pw, a=1, void=False, epsi=1, epse=1) -> None:
         self.layers = dict()
-        self.stacking = []
         self.stacking_matrices = list()
         self.stack_positions = []
         self.pw = pw
         self.a = a
         self.void = void
-        self.global_rotation = 0
         self.expansion = Expansion(pw, a)
         self.epsi = epsi
         self.epse = epse
@@ -57,29 +54,25 @@ class Crystal():
         else:
             self.layers[name] = layer
 
-    def set_stacking(self, stack):
+    def set_device(self, layers_stack, fields_mask=None):
         '''
             Take the stacking from the user device and pre.a.ppend the incidence and emergence media.
         '''
-        self.stacking = copy(stack)
         self.global_stacking = []
         if not self.void:
             self.global_stacking.append("Sref")
-        self.global_stacking.extend(stack)
+        self.global_stacking.extend(layers_stack)
         if not self.void:
             self.global_stacking.append("Strans")
+        if fields_mask is None:
+            self.stack_retain_mask = [False]*len(self.global_stacking)
+        else:
+            self.stack_retain_mask = [True]
+            self.stack_retain_mask.extend(fields_mask)
+            self.stack_retain_mask.append(True)
 
-    def filter_layers_requiring_fields(self, stack, positions, interval):
-        zmin, zmax = interval
-        keep = False
-        mask = list()
-        for i, (layer, position) in enumerate(zip(stack, positions)):
-            if zmin <= position and not keep:
-                keep = True
-            elif zmax < position and keep:
-                keep=False
-            mask.append(keep)
-        return mask
+
+
 
     def solve(self):
         # Solving the required layers
@@ -104,13 +97,12 @@ class Crystal():
         layer_sizes = [ l.depth for l in stacked_layers ]
 
         self.stack_positions = list(np.cumsum(layer_sizes))
-        mask = self.filter_layers_requiring_fields(stacked_layers, self.stack_positions, self.fields_interval)
         self.stack_positions[-1] = np.inf
         if not self.void:
             self.stack_positions.insert(0, -np.inf )
         
 
-        self.stacking_matrices, self.stacking_reverse_matrices, self.Stot = stack_layers(self.expansion.pw, stacked_layers, mask)
+        self.stacking_matrices, self.stacking_reverse_matrices, self.Stot = stack_layers(self.expansion.pw, stacked_layers, self.stack_retain_mask)
 
     
     def locate_layer(self, z):
@@ -146,7 +138,7 @@ class Crystal():
             _type_: fourier fields at depth z.
         """
         layer, layer_index, zr = self.locate_layer(z)
-        assert(layer.fields, f"Layer at {z} did not store eigenspace.")
+        assert layer.fields, f"Layer at {z} did not store eigenspace."
         LI, WI, VI= layer.L, layer.W, layer.V
         RI = layer_eigenbasis_matrix(WI, VI)
         if use_lu and not hasattr(layer, "luRI"):
@@ -227,18 +219,7 @@ class Crystal():
     
         return np.split(np.asarray(fields), 2, axis=0)
     
-
-    def fields_volume(self, zvals):
-        incident_fields = incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))
-        fields = []
-        for z in zvals:
-            fields.append(self.field_cell_xy(z, incident_fields))
-        fields = np.asarray(fields)
-        #fields = np.swapaxes(fields, 0, 1)
-        #fields = np.swapaxes(fields, 1, 2)
-        return fields[:,0, ...], fields[:,1, ...]
-
-    def fields_volume2(self, x, y, z, incident_fields=None, use_lu=False):
+    def fields_volume(self, x, y, z, incident_fields=None, use_lu=False):
         if incident_fields is None:
             incident_fields = incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))
         fields = []
@@ -262,11 +243,7 @@ class Crystal():
         self.k0 = 2 * np.pi / wavelength
         self.kzi = np.conj(csqrt(self.k0**2 * eps_inc-kxi**2 - kyi**2))
 
-    def rotate_deg(self, alpha):
-        self.global_rotation = np.deg2rad(alpha)
-    
-
-    def poynting_flux_end(self) -> Tuple[float, float]:
+    def poynting_flux_end(self):
         #lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp)
         incident_fields = incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))
         Wref = self.layers["Sref"].W
@@ -278,6 +255,4 @@ class Crystal():
 
         return R, T
     
-    def prepare_fields(self, zstart, zend):
-        self.fields_interval = zstart, zend
 
