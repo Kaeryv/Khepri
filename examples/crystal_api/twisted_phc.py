@@ -35,8 +35,7 @@ def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3)):
     twcl.add_layer("Scdo", Layer.pixmap(e2, pattern.canvas(), 0.2), True)
     twcl.add_layer("Strans", Layer.half_infinite(e2, "transmission", 1), True)
 
-    device = ["Scup", "Sair", "Scdo"]
-    twcl.set_device(device)
+    twcl.set_device(["Scup", "Sair", "Scdo"])
     twcl.set_source(wl, polar[0], polar[1], theta, phi)
     twcl.solve()
     return twcl
@@ -53,6 +52,8 @@ if sys.argv[1] == "RT":
     ax.plot(RT[:, 0], label="R")
     ax.plot(RT[:, 1], label="T")
     fig.savefig(sys.argv[2])
+    if len(sys.argv) >= 5:
+        np.save(sys.argv[4], RT)
 
 if sys.argv[1] == "longitudinal_fields":
     '''
