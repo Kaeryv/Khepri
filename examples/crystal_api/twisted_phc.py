@@ -68,7 +68,7 @@ if sys.argv[1] == "map":
         rtmap.append(np.load(pattern.replace("*", str(i))))
     rtmap = np.asarray(rtmap).reshape(num_angles, -1, 2)
     fig, ax = plt.subplots()
-    ax.matshow(rtmap[..., 0])
+    ax.matshow(rtmap[..., 0].T, origin="lower", vmin=0, vmax=1)
     fig.savefig(sys.argv[3])
 
 
