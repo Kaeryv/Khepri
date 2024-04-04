@@ -70,22 +70,20 @@ def idft(ffield, kx, ky, x, y):
         This allows to choose when the fields should be evaluated.
         This routine is way slower for the whole unit cell.
     '''
+    assert x.shape == y.shape
     oshape = x.shape
-    #if len(x.shape) == 1:
-    #    x = x.reshape(1, 1)
-    #    y = y.reshape(1, 1)
     fields = np.zeros_like(x, dtype=np.complex128)
     xmin, xmax = np.min(x), np.max(x)
     ymin, ymax = np.min(y), np.max(y)
     dx = (xmax - xmin) / x.shape[0]
-    dy = (xmax - ymin) / x.shape[1]
+    dy = (ymax - ymin) / x.shape[1]
     for i in prange(kx.shape[0]):
         field_i = np.zeros_like(x, dtype=np.complex128)
         KX = np.exp(1j*kx[i]*dx)
         KY = np.exp(1j*ky[i]*dy)
-        KXk = np.exp(1j*kx[i]*np.min(x))
+        KXk = np.exp(1j*kx[i]*xmin)
         for k in range(x.shape[0]):
-            KYl = np.exp(1j*ky[i]*np.min(y))
+            KYl = np.exp(1j*ky[i]*ymin)
             for l in range(x.shape[1]):
                 field_i[k, l] += ffield[i] *  KXk * KYl #np.exp(-1j*(kx[i]*dx*k+ky[i]*dx*l))
                 KYl *= KY
