@@ -17,7 +17,7 @@ from glob import glob
     Define the pattern (common to both layers)
 '''
 pattern = Drawing((256,256), 4)
-pattern.circle((0,0), 0.25, 1.0)
+pattern.circle((0,0), 0.25, 1)
 
 '''
     Define the crystal layers. 
@@ -32,12 +32,16 @@ def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3), fields
     etw = twcl.expansion
     twcl.add_layer("Sref",   Layer.half_infinite(e1, "reflexion", 1), True)
     twcl.add_layer("Scup", Layer.pixmap(e1, pattern.canvas(), 0.2), True)
-    twcl.add_layer("Sair",   Layer.uniform(e1, 1.0, 0.3), True)
+    twcl.add_layer("Sair",   Layer.uniform(etw, 1.0, 0.3), False)
+    twcl.add_layer("Sbuffer",   Layer.uniform(etw, 1.0, 0.9), False)
     twcl.add_layer("Scdo", Layer.pixmap(e2, pattern.canvas(), 0.2), True)
     twcl.add_layer("Strans", Layer.half_infinite(e2, "transmission", 1), True)
-
+    twcl.layers["Sair"].fields = True
+    twcl.layers["Sbuffer"].fields = True
+    device = ["Scup", "Sair", "Scdo"]
     if fields:
-        twcl.set_device(["Scup", "Sair", "Scdo"], [True]*3)
+        device.extend(["Sbuffer"]*5)
+        twcl.set_device(device, [True]*len(device))
     else:
         twcl.set_device(["Scup", "Sair", "Scdo"])
     twcl.set_source(wl, polar[0], polar[1], theta, phi)
@@ -76,68 +80,79 @@ if sys.argv[1] == "lg_fields":
     '''
         Get those fields in longitudinal plane.
     '''
-    wl = 1 / 0.7
-    ta = 6
-    twcl = solve_crystal(wl, ta, polar=(1,1), pw=(5,5), fields=True)
-
-    x, y, z = coords(0, 12, 0.5, 0.5, 1e-7, 1.5, (256, 1, 64))
-    E, H = twcl.fields_volume(x, y, tqdm(z)) # Progress bar on z axis
+    pwx = int(sys.argv[3])
+    wl = float(eval(sys.argv[4]))
+    ta = float(eval(sys.argv[5]))
+    theta = 0
+    twcl = solve_crystal(wl, ta, polar=(1,1), pw=(pwx,pwx), fields=True, theta=theta, phi=0)
+    print("Solved crystal")
+    y0 = 0.1
+    x, y, z = coords(0, 24, y0, y0, -2, 4.5, (256, 1, 128))
+    E, H = twcl.fields_volume(y, x, tqdm(z)) # Progress bar on z axis
     E = np.squeeze(E)
 
     '''
         Plot them.
     '''
-    Exxz = E[:, 0, :].real
-    Eyxz = E[:, 1, :].real
-    Edisp = Exxz
+    Exxz = E[:, 0, :]
+    Eyxz = E[:, 1, :]
+    Edisp = Exxz - 1j * Eyxz
+    #Edisp = Ercp.real
+    Emag = np.abs(Edisp)
+    Ereal = Edisp.real
     vmax = np.max(np.abs(Edisp))
-    fig, ax = plt.subplots(figsize=(10,5))
-    ax.matshow(Edisp, cmap="RdBu", origin="lower", vmin=-vmax, vmax=vmax, aspect=3, extent=[ 0, np.max(x), 0, np.max(z)])
+    fig, (ax1,ax2) = plt.subplots(2, figsize=(10,4.5))
+    ax1.matshow(Ereal, cmap="bwr", origin="lower", vmin=-vmax, vmax=vmax, aspect=2.5, extent=[ 0, np.max(x), np.min(z), np.max(z)])
+    ax2.arrow(np.max(x)/2, np.min(z) / 2, 0.5*np.sin(np.deg2rad(theta)), 0.5*np.cos(np.deg2rad(theta)), color="w", 
+              head_width=0.5, head_length=0.2)
+    ax2.matshow(Emag, cmap="magma", origin="lower", vmin=0, aspect=2.5, extent=[ 0, np.max(x), np.min(z), np.max(z)])
 
 
     '''
         Overlay the structure (WIP).
     '''
-    for z in [0.0, 0.4, 0.6, 0.9, 1.1, 1.5]:
-        ax.axhline(z, color="k")
-    eps = pattern.canvas()
-    eps = eps[eps.shape[0]//2, :]
-    eps -= 1
-    eps /= eps.max()
-    eps = np.tile(eps, 12)
-    x = np.linspace(0, 12, len(eps))
-    plt.fill_between(x, 0.4, eps*0.2+0.4, alpha=0.2, color="k")
-    plt.fill_between(x, 0.4, eps*0.2+0.4+0.2+0.3, alpha=0.2, color="k")
+    for z in [0.0, 0.2, 0.5, 0.7]:
+        ax1.axhline(z, color="k")
+        ax2.axhline(z, color="k")
+
     plt.xlabel("x[µm]")
     plt.ylabel("z[µm]")
-    plt.gca().set_position([0.05, 0.05, 0.95, 0.95])
+    ax1.set_position([0.5, 0.05, 0.45, 0.9])
+    ax2.set_position([0.05, 0.05, 0.45, 0.9])
+    R, T = twcl.poynting_flux_end()
+    T = T.real
+    ax2.text(0.5, 3.0, f"T={T*100:0.0f}%", color="w")
+    ax2.text(0.5, 3.5, f"twist={ta:0.2f} deg", color="w")
+    ax2.text(0.5, 4.0, f"f={1/wl:0.2f}", color="w")
     plt.savefig(sys.argv[2])
 
 
-if False:
-    '''
-        Get those fields in transversal plane
-    '''
-    #etw.plot()
-    zmax = twcl.stack_positions[-2]
-    depth = 0.35#zmax+0.9
-    w = 6
+if sys.argv[1] == "tr_fields":
+    pwx = int(sys.argv[3])
+    wl = float(eval(sys.argv[4]))
+    ta = float(eval(sys.argv[5]))
+    twcl = solve_crystal(wl, ta, polar=(-1,1), pw=(pwx,pwx), fields=True)
+    depth = 4
+    w = 12
     x, y, z = coords(-w, w, -w, w, depth, depth, (512, 512, 1))
-    E, H = twcl.fields_volume2(x, y, z)
+    E, H = twcl.fields_volume(x, y, z)
     E = np.squeeze(E)
-    print(E.shape)
-    Exxy = E[0]
-    Eyxy = E[1]
-    Ezxy = E[2]
-    Edisp =  Exxy#**2+Eyxy**2#+Ezxy**2
+    Edisp =  E[0] -1j*E[1] #**2+Eyxy**2#+Ezxy**2
+
+    Emag = np.abs(Edisp)
     vmax = np.max(np.abs(Edisp.real))
-    fig, (ax1,ax2) = plt.subplots(2, figsize=(10,10))
-    im = ax1.matshow(Edisp.real, cmap="bwr", origin="lower", vmin=-vmax, vmax=vmax, extent=[ np.min(x), np.max(x), np.min(y), np.max(y)])
-    #im = ax1.matshow(np.abs(Edisp), cmap="inferno", origin="lower", vmin=0, vmax=vmax, extent=[ np.min(x), np.max(x), np.min(y), np.max(y)])
+    fig, (ax1,ax2) = plt.subplots(1, 2, figsize=(10,4.5))
+    im = ax1.matshow(Emag, cmap="magma", origin="lower",  extent=[ np.min(x), np.max(x), np.min(y), np.max(y)])
     alpha = np.abs(Edisp) / np.max(np.abs(Edisp))
     im2 = ax2.matshow(np.angle(Edisp), cmap="hsv", origin="lower", vmin=-np.pi, vmax=np.pi, extent=[ np.min(x), np.max(x), np.min(y), np.max(y)], alpha=alpha)
     plt.colorbar(im)
     plt.colorbar(im2)
     ax1.axis("square")
     ax2.axis("square")
-    plt.savefig("twisted_fields_transversal.png")
+    R, T = twcl.poynting_flux_end()
+    T = T.real
+    ax1.text(0.5, 1.0, f"T={T*100:0.0f}%", color="w")
+    ax1.text(0.5, 3.0, f"twist={ta:0.2f} deg", color="w")
+    ax1.text(0.5, 5.0, f"f={1/wl:0.2f}", color="w")
+    if sys.argv[2] != "n":
+        plt.savefig(sys.argv[2])
