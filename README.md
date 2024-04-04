@@ -13,6 +13,13 @@ RCWA Implementation fully in python!
 - Easy-to-use script with json input files available in exebutable module `bast.ez`
 
 
+## Extended RCWA
+
+The code enables the use of extended RCWA, allowing for twisted bilayer systems.
+
+![](examples/figures/twist_xz.png)
+
+
 ## Getting started
 
 Here is a sample code to get tou started, don't hesitate to contact me on Github if you need help (via issues for example).
