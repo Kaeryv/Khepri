@@ -249,7 +249,7 @@ def poynting_fluxes(expansion, c_output, kp, wavelength, only_total=True):
     sx, sy = np.split(c_output, 2)
     kx, ky, kz = expansion.k_vectors(kp, wavelength)
     sz = - (kx * sx + ky * sy) / kz
-    t = k0 * kz.real/kzi @ (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
+    t = k0 * kz.real / kzi * (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
     if only_total:
         return np.sum(t)
     else:
