@@ -64,18 +64,18 @@ def joint_subspace(submatrices: list, kind=0):
 
 
 class ExtendedLayer():
-    def __init__(self, expansion, base_layer) -> None:
-        if expansion.expansion_lhs == base_layer.expansion:
+    def __init__(self, expansion, base) -> None:
+        if expansion.expansion_lhs == base.expansion:
             self.mode = 1
             self.gs = expansion.expansion_rhs.g_vectors
-        elif expansion.expansion_rhs == base_layer.expansion:
+        elif expansion.expansion_rhs == base.expansion:
             self.mode = 0
             self.gs = expansion.expansion_lhs.g_vectors
         else:
             raise NotImplementedError(
                     "Base layer expansion should be in the extented expansion.")
         self.expansion = expansion
-        self.base = base_layer
+        self.base = base
         self.depth = self.base.depth
         self.fields = self.base.fields
     
@@ -84,11 +84,16 @@ class ExtendedLayer():
         WIs = list()
         VIs = list()
         LIs = list()
-        if hasattr(self, "fields"):
+        if isinstance(base, Layer) and hasattr(self, "fields"):
             self.base.fields = self.fields
 
         for kp in self.gs.T:
-            self.base.solve(kp + k_parallel, wavelength)
+            if isinstance(base, Layer)
+                self.base.solve(kp + k_parallel, wavelength)
+            else:
+                self.base.set_source(wavelength, np.nan, np.nan, kp=kp + k_parallel)
+                self.base.solve()
+
             Ss.append(self.base.S.copy())
             if self.fields:
                 WIs.append(self.base.W.copy())

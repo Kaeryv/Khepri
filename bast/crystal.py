@@ -116,6 +116,7 @@ class Crystal():
         
 
         self.stacking_matrices, self.stacking_reverse_matrices, self.Stot = stack_layers(self.expansion.pw, stacked_layers, self.stack_retain_mask)
+        self.S = self.Stot
 
     
     def locate_layer(self, z):
