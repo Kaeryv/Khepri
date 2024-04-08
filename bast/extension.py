@@ -84,11 +84,11 @@ class ExtendedLayer():
         WIs = list()
         VIs = list()
         LIs = list()
-        if isinstance(base, Layer) and hasattr(self, "fields"):
+        if isinstance(self.base, Layer) and hasattr(self, "fields"):
             self.base.fields = self.fields
 
         for kp in self.gs.T:
-            if isinstance(base, Layer)
+            if isinstance(self.base, Layer):
                 self.base.solve(kp + k_parallel, wavelength)
             else:
                 self.base.set_source(wavelength, np.nan, np.nan, kp=kp + k_parallel)
