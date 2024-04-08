@@ -77,7 +77,6 @@ class ExtendedLayer():
         self.expansion = expansion
         self.base = base_layer
         self.depth = self.base.depth
-        self.base.fields = True
         self.fields = self.base.fields
     
     def solve(self, k_parallel, wavelength):
@@ -85,6 +84,8 @@ class ExtendedLayer():
         WIs = list()
         VIs = list()
         LIs = list()
+        if hasattr(self, "fields"):
+            self.base.fields = self.fields
 
         for kp in self.gs.T:
             self.base.solve(kp + k_parallel, wavelength)

@@ -32,8 +32,8 @@ class Crystal():
         self.epse = epse
 
     @classmethod
-    def from_expansion(cls, expansion, a=1, epsi=1, epse=1):
-        obj = cls(expansion.pw, a=a, epse=epse, epsi=epsi)
+    def from_expansion(cls, expansion, a=1, epsi=1, epse=1, void=False):
+        obj = cls(expansion.pw, a=a, epse=epse, epsi=epsi, void=void)
         obj.expansion = expansion
         return obj
     
@@ -70,6 +70,11 @@ class Crystal():
             self.stack_retain_mask = [True]
             self.stack_retain_mask.extend(fields_mask)
             self.stack_retain_mask.append(True)
+            for name, enabled in zip(self.global_stacking, self.stack_retain_mask):
+                self.layers[name].fields |= enabled
+                if hasattr(self.layers[name], "base"):
+                    self.layers[name].base.fields |= enabled
+
 
 
 
@@ -155,13 +160,9 @@ class Crystal():
         k0 = 2 * np.pi / self.source.wavelength
 
         Wref = self.layers["Sref"].W
-        #Vref = self.layers["Sref"].V
-        #Rref = layer_eigenbasis_matrix(W0, V0)
-        #S, U = np.split(incident_fields, 2)
-        #c1p = solve(W0, S) + solve(V0, U)
-
-        c1p = solve(Wref, incident_fields)
-        #c1p = np.split(solve(Rref,  incident_fields), 2)[0]      
+        Vref = self.layers["Sref"].V
+        Rref = layer_eigenbasis_matrix(Wref, Vref)
+        c1p = np.split(solve(Rref,  incident_fields), 2)[0]      
         c1m = self.Stot[0,0] @ c1p
         c2p = self.Stot[1,0] @ c1p
         cdplus, cdminus = translate_mode_amplitudes2(self.stacking_matrices[layer_index], self.stacking_reverse_matrices[layer_index], c1p, c1m,c2p)
@@ -221,13 +222,12 @@ class Crystal():
     
     def fields_volume(self, x, y, z, incident_fields=None, use_lu=False):
         if incident_fields is None:
-            incident_fields = incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))
+            efield = incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))
+            hfield = np.zeros_like(efield)
         fields = []
         for zi in z:
-            fields.append(self.fields_coords_xy(x, y, zi, incident_fields, use_lu=use_lu))
+            fields.append(self.fields_coords_xy(x, y, zi, np.hstack((efield, hfield)), use_lu=use_lu))
         fields = np.asarray(fields)
-        #fields = np.swapaxes(fields, 0, 1)
-        #fields = np.swapaxes(fields, 1, 2)
         return fields[:,0, ...], fields[:,1, ...]
 
     
@@ -253,6 +253,10 @@ class Crystal():
         T = poynting_fluxes(self.expansion, Wtrans @ self.Stot[1,0] @ c1p, self.kp, self.source.wavelength)
         R = poynting_fluxes(self.expansion, Wref @ self.Stot[0,0] @ c1p, self.kp, self.source.wavelength)
 
-        return R, T
+        return R.real, T.real
+    
+    @property
+    def zmax(self):
+        return self.stack_positions[-2]
     
 
