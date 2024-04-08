@@ -58,6 +58,7 @@ class Crystal():
         '''
             Take the stacking from the user device and pre.a.ppend the incidence and emergence media.
         '''
+        self.device_stack = copy(layers_stack)
         self.global_stacking = []
         if not self.void:
             self.global_stacking.append("Sref")
@@ -74,6 +75,13 @@ class Crystal():
                 self.layers[name].fields |= enabled
                 if hasattr(self.layers[name], "base"):
                     self.layers[name].base.fields |= enabled
+
+    @property
+    def depth(self):
+        depth = 0
+        for name in self.device_stack:
+            depth += self.layers[name].depth
+        return depth
 
 
 
