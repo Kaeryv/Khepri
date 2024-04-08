@@ -242,7 +242,7 @@ def scattering_identity(pw, block=False):
     return SI
 
 
-def poynting_fluxes(expansion, c_output, kp, wavelength):
+def poynting_fluxes(expansion, c_output, kp, wavelength, only_total=True):
     epsi=1
     k0 = 2 * np.pi / wavelength
     kzi = np.conj(csqrt(k0**2*epsi-kp[0]**2-kp[1]**2))
@@ -250,4 +250,7 @@ def poynting_fluxes(expansion, c_output, kp, wavelength):
     kx, ky, kz = expansion.k_vectors(kp, wavelength)
     sz = - (kx * sx + ky * sy) / kz
     t = k0 * kz.real/kzi @ (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
-    return np.sum(t)
+    if only_total:
+        return np.sum(t)
+    else:
+        return np.sum(t), t

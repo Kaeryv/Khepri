@@ -252,17 +252,19 @@ class Crystal():
         self.k0 = 2 * np.pi / wavelength
         self.kzi = np.conj(csqrt(self.k0**2 * eps_inc-kxi**2 - kyi**2))
 
-    def poynting_flux_end(self):
+    def poynting_flux_end(self, only_total=True):
         #lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp)
         incident_fields = incident(self.pw, self.source.te, self.source.tm, k_vector=(self.kp[0], self.kp[1], self.kzi))
         Wref = self.layers["Sref"].W
         iWref = np.linalg.inv(Wref)
         c1p =  iWref @ incident_fields #[np.tile(lattice.trunctation,2)]
         Wtrans = self.layers["Strans"].W
-        T = poynting_fluxes(self.expansion, Wtrans @ self.Stot[1,0] @ c1p, self.kp, self.source.wavelength)
-        R = poynting_fluxes(self.expansion, Wref @ self.Stot[0,0] @ c1p, self.kp, self.source.wavelength)
-
-        return R.real, T.real
+        T = poynting_fluxes(self.expansion, Wtrans @ self.Stot[1,0] @ c1p, self.kp, self.source.wavelength, only_total=only_total)
+        R = poynting_fluxes(self.expansion, Wref @ self.Stot[0,0] @ c1p, self.kp, self.source.wavelength, only_total=only_total)
+        if only_total:
+            return R.real, T.real
+        else:
+            return R, T
     
     @property
     def zmax(self):
