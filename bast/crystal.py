@@ -65,6 +65,16 @@ class Crystal():
         self.global_stacking.extend(layers_stack)
         if not self.void:
             self.global_stacking.append("Strans")
+
+
+        required_layers = set(self.global_stacking)
+        if "Sref" in required_layers and "Sref" not in self.layers:
+            self.layers["Sref"] = Layer.half_infinite(self.expansion, "reflexion", self.epsi)
+            self.layers["Sref"].fields = True
+        if "Strans" in required_layers and "Strans" not in self.layers:
+            self.layers["Strans"] = Layer.half_infinite(self.expansion, "transmission", self.epse)
+            self.layers["Strans"].fields = True
+
         if fields_mask is None:
             self.stack_retain_mask = [False]*len(self.global_stacking)
         else:
@@ -90,12 +100,7 @@ class Crystal():
     def solve(self):
         # Solving the required layers
         required_layers = set(self.global_stacking)
-        if "Sref" not in required_layers:
-            self.layers["Sref"] = Layer.half_infinite(self.expansion, "reflexion", self.epsi)
-            self.layers["Sref"].fields = True
-        if "Strans" not in required_layers:
-            self.layers["Strans"] = Layer.half_infinite(self.expansion, "transmission", self.epse)
-            self.layers["Strans"].fields = True
+        
         for name in required_layers:
             self.layers[name].solve(self.kp, self.source.wavelength)
 

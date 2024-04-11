@@ -26,7 +26,7 @@ stacking = []
 stacking.extend(["Scyl"]*sc)
 stacking.extend(["S1"]*sc)
 stacking.extend(["Scyl"]*sc)
-cl.set_stacking(stacking)
+cl.set_device(stacking, [True]*len(stacking))
 #cl.set_stacking(["S1", "S1", "S1"])
 d.plot("test.png")
 
@@ -47,52 +47,53 @@ if False:
     plt.plot(d[:,0]*1e12 / c * 1e-6, d[:,1])
     plt.savefig("Spectra_holey_pair.png")
 
-# Compute field maps
-if False:
-    wl = 1.428
-    cl.set_source(wl, 1.0, 0.0, 0, 0)
-    cl.solve()
-    start=0.0001
-    x = np.linspace(0, 1, 100)
-    y = np.linspace(0, 1, 100)
-    E, H = cl.fields_volume(tqdm(np.linspace(start, cl.stack_positions[-1], 64)))
-    #E, H = cl.fields_volume2(x, y, tqdm(np.linspace(start, cl.stack_positions[-1], 64)))
-    Exxz = E[:,0,:, 64].real
-    Eyxz = E[:,1,:, 64].real
-    Exyz = E[:,0,64, :].real
-    Eyyz = E[:,1,64, :].real
-    fig, axs = plt.subplots(2, 2, figsize=(4,6))
-    axs = axs.flatten()
-    for i, e in enumerate([Exxz, Eyxz, Exyz, Eyyz]):
-        mx = np.max(e.real)
-        axs[i].set_title(f"{i}")
-        axs[i].matshow(e.real, origin="lower",cmap="RdBu", extent=[0, 1, start, cl.stack_positions[-1]], vmax=mx, vmin=-mx)
-    #for z in cl.stack_positions[1:]:
-    #    ax1.axhline(z, color="w", alpha=0.5)
-    #    ax2.axhline(z, color="w", alpha=0.5)
-    plt.savefig(f"Efield_debug.png", transparent=True)
+# Compute field maps OUTDATED
+#if False:
+#    wl = 1.428
+#    cl.set_source(wl, 1.0, 0.0, 0, 0)
+#    cl.solve()
+#    start=0.0001
+#    x = np.linspace(0, 1, 100)
+#    y = np.linspace(0, 1, 100)
+#    E, H = cl.fields_volume(tqdm(np.linspace(start, cl.stack_positions[-1], 64)))
+#    #E, H = cl.fields_volume2(x, y, tqdm(np.linspace(start, cl.stack_positions[-1], 64)))
+#    Exxz = E[:,0,:, 64].real
+#    Eyxz = E[:,1,:, 64].real
+#    Exyz = E[:,0,64, :].real
+#    Eyyz = E[:,1,64, :].real
+#    fig, axs = plt.subplots(2, 2, figsize=(4,6))
+#    axs = axs.flatten()
+#    for i, e in enumerate([Exxz, Eyxz, Exyz, Eyyz]):
+#        mx = np.max(e.real)
+#        axs[i].set_title(f"{i}")
+#        axs[i].matshow(e.real, origin="lower",cmap="RdBu", extent=[0, 1, start, cl.stack_positions[-1]], vmax=mx, vmin=-mx)
+#    #for z in cl.stack_positions[1:]:
+#    #    ax1.axhline(z, color="w", alpha=0.5)
+#    #    ax2.axhline(z, color="w", alpha=0.5)
+#    plt.savefig(f"Efield_debug.png", transparent=True)
 
 # Compute field maps faster
+from bast.misc import coords
 if True:
     wl = 1/0.4 #1.428
     cl.set_source(wl, 1.0, 1.0, 0, 0)
     cl.solve()
-    start=0.0001
-    x = np.linspace(0, 1, 100)
-    y = np.ones(100)*0.5
-    E, H = cl.fields_volume2(x, y, tqdm(np.linspace(start, cl.stack_positions[-1], 64)))
+    x, y, z = coords(0, 1, 0.5, 0.5, 0.0001, cl.stack_positions[-2], (100, 1, 128))
+    E, H = cl.fields_volume(x, y, tqdm(z))
     Exxz = E[:, 0].real
     Eyxz = E[:, 1].real
-    E, H = cl.fields_volume2(y, x, tqdm(np.linspace(start, cl.stack_positions[-1], 64)))
+    E, H = cl.fields_volume(y, x, tqdm(z))
     Exyz = E[:, 0].real
     Eyyz = E[:, 1].real
     fig, axs = plt.subplots(2, 2, figsize=(4,6))
     axs = axs.flatten()
+    extent = [np.min(x), np.max(x), np.min(z), np.max(z)]
     for i, e in enumerate([Exxz, Eyxz, Exyz, Eyyz]):
+        e = np.squeeze(e)
         mx = np.max(e.real)
         axs[i].set_title(f"{i}")
-        axs[i].matshow(e.real, origin="lower",cmap="RdBu", extent=[0, 1, start, cl.stack_positions[-1]], vmax=mx, vmin=-mx)
-    #for z in cl.stack_positions[1:]:
+        axs[i].matshow(e.real, origin="lower",cmap="RdBu", extent=extent, vmax=mx, vmin=-mx)
+    #for z in cl.stack_positions[1:-1]:
     #    ax1.axhline(z, color="w", alpha=0.5)
     #    ax2.axhline(z, color="w", alpha=0.5)
     plt.savefig(f"Efield_debug2.png", transparent=True)
