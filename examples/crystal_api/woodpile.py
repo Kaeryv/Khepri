@@ -30,6 +30,10 @@ pattern = Drawing(canvas_size, 1)
 pattern.rectangle((0,0), (0.2, 1), 13.0)
 pattern.plot("figs/Woodpile_Pattern.png")
 
+pattern2 = Drawing(canvas_size, 1)
+pattern2.rectangle((0,0), (0.2, 1), 13.0)
+pattern2.plot("figs/Woodpile_Pattern2.png")
+
 def solve_rt(frequency, angle_deg):
     e1 = Expansion(pw)
     e2 = Expansion(pw)
