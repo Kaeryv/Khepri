@@ -138,7 +138,7 @@ def solve_fields(freq, angle_deg, x, y, z, solveresults, lu=None):
     c2p = S21 @ c1p
     cdplus, cdminus = translate_mode_amplitudes2(Sl, Sr, c1p, c1m, c2p)
     d = layer.depth
-    ffields, lu = fourier_fields_from_mode_amplitudes_lu(RI, LI, R0, (cdplus, cdminus), k0*(d-zr), lu=lu)
+    ffields, lu = fourier_fields_from_mode_amplitudes(RI, LI, R0, (cdplus, cdminus), k0*(d-zr), luRI=lu)
     
     fields = [ fourier2real_xy(s, k0*Kx, k0*Ky, x, y) for s in ffields]
 
