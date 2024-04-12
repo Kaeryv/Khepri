@@ -28,8 +28,6 @@ phi = 0
 canvas_size = (N,1)
 pattern = Drawing(canvas_size, 1)
 pattern.rectangle((0,0), (0.2, 1), 13.0)
-pattern = Drawing(canvas_size, 1)
-pattern.rectangle((,0), (0.2, 1), 13.0)
 pattern.plot("figs/Woodpile_Pattern.png")
 
 def solve_rt(frequency, angle_deg):

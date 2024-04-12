@@ -43,7 +43,7 @@ def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3), fields
         device.extend(["Sbuffer"]*5)
         twcl.set_device(device, [True]*len(device))
     else:
-        twcl.set_device(["Scup", "Sair", "Scdo"])
+        twcl.set_device(["Scup", "Sair", "Scdo"], [True]*3)
     twcl.set_source(wl, polar[0], polar[1], theta, phi)
     twcl.solve()
     return twcl
@@ -53,7 +53,7 @@ if sys.argv[1] == "RT":
     RT = np.zeros((M,2))
     angle = float(sys.argv[3])
     for i, f in enumerate(np.linspace(0.7, 0.83, M)):
-        twcl = solve_crystal(1/f, angle)
+        twcl = solve_crystal(1/f, angle, pw=(5,5))
         RT[i] = twcl.poynting_flux_end()
 
     fig, ax = plt.subplots()
