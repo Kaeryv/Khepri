@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from bast.tools import nanometers
+from bast.tmat.tools import nanometers
 from bast.tmat.lattice import CartesianLattice
 from bast.tmat.scattering import scattering_matrix
 import numpy as np

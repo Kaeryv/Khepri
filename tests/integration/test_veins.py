@@ -4,13 +4,17 @@
 
 import unittest
 
-from bast.tools import nanometers
+from bast.tmat.tools import nanometers
 from bast.tmat.matrices import multS
 from bast.tmat.lattice import CartesianLattice
 import numpy as np
 from scipy.io import loadmat
 from numpy.testing import assert_allclose
-from bast.tools import coords_from_index
+from bast.tmat.tools import coords_from_index
+
+from bast.tmat.tools import epsilon_g, grid_size
+from bast.fourier import transform
+
 fixtures = "./tests/integration/fixtures/veins/"
 pw = (6, 6)
 a  = nanometers(100)
@@ -81,8 +85,6 @@ class TestVeins(unittest.TestCase):
         assert_allclose(U, data["U_in"])
         assert_allclose(Vi, data["V_in"])
 
-        from bast.tools import epsilon_g, grid_size
-        from bast.fourier import transform
         lattice = CartesianLattice(pw, a1=(a, 0.0), a2=(0.0, a), eps_emerg=1.0, eps_incid=1.0, dtype=np.float64)
         boolean_field = transform("rectangle", [veins * a, veins*a, a*(1-veins), a  *(1-veins) ], lattice.Gx, lattice.Gy, lattice.area)
         
@@ -96,8 +98,7 @@ class TestVeins(unittest.TestCase):
     def test_matrices(self):
         lattice = CartesianLattice(pw, a1=(a, 0.0), a2=(0.0, a), eps_emerg=1.0, eps_incid=1.0, dtype=np.float64)
         U, Vi = lattice.U(wavelength, kp), lattice.Vi(wavelength, kp)
-        from bast.tools import epsilon_g, grid_size
-        from bast.fourier import transform
+        
         boolean_field = transform("rectangle", [veins * a, veins*a, a*(1-veins), a  *(1-veins) ],  lattice.Gx, lattice.Gy, lattice.area)
         data = loadmat(f"{fixtures}/S.mat")
         

@@ -1,11 +1,14 @@
 import unittest
 
-from bast.tools import nanometers, coords_from_index
+from bast.tmat.tools import nanometers, coords_from_index
 from bast.tmat.matrices import multS
 from bast.tmat.lattice import CartesianLattice
 import numpy as np
 from scipy.io import loadmat
 from numpy.testing import assert_allclose
+
+from bast.tmat.tools import epsilon_g, grid_size
+from bast.fourier import transform
 
 fixtures = "./tests/integration/fixtures/cylinder/"
 pw = (3, 3)
@@ -75,8 +78,6 @@ class TestCylinder(unittest.TestCase):
         assert_allclose(U, data["U_in"])
         assert_allclose(Vi, data["V_in"])
 
-        from bast.tools import epsilon_g, grid_size
-        from bast.fourier import transform
         lattice = CartesianLattice(pw, a1=(a, 0.0), a2=(0.0, a), eps_emerg=1.0, eps_incid=1.0, dtype=np.float64)
         boolean_field = transform("disc", [0.5*a, 0.5*a, 0.2*a], lattice.Gx, lattice.Gy, lattice.area)
         
@@ -90,8 +91,7 @@ class TestCylinder(unittest.TestCase):
     def test_matrices(self):
         lattice = CartesianLattice(pw, a1=(a, 0.0), a2=(0.0, a), eps_emerg=1.0, eps_incid=1.0, dtype=np.float64)
         U, Vi = lattice.U(wavelength, kp), lattice.Vi(wavelength, kp)
-        from bast.tools import epsilon_g, grid_size
-        from bast.fourier import transform
+        
         boolean_field = transform("disc", [0.5*a, 0.5*a, 0.2*a], lattice.Gx, lattice.Gy, lattice.area)
         data = loadmat(f"{fixtures}/S.mat")
         

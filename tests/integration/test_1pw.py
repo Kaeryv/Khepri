@@ -4,7 +4,7 @@
     Comparison is made against validated matlab RCWA.
 """
 import unittest
-from bast.tools import nanometers
+from bast.tmat.tools import nanometers
 from bast.tmat.lattice import CartesianLattice
 from bast.tmat.scattering import scattering_matrix
 

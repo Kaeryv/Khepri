@@ -3,7 +3,6 @@ sys.path.append(".")
 assert(len(sys.argv) > 1)
 action = sys.argv[1]
 
-from bast.crystal import Crystal
 from bast.tools import _joint_subspace, joint_subspace
 from bast.draw import Drawing
 import numpy as np

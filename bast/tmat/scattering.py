@@ -1,8 +1,9 @@
-from ..tools import *
+from .tools import coords_from_index
 from .matrices import *
 from .lattice import complex_dtype
 from scipy.linalg import expm
 from ..fourier import transform
+from bast.tmat.tools import grid_size, epsilon_g
 
 
 class LayerMatrix():

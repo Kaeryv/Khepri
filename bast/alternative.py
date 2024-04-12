@@ -208,22 +208,28 @@ def build_scatmat(WI, VI, W0, V0, lambdas, dbar, k0):
     S21, S22 = S12, S11
     return np.array([[S11, S12], [S21, S22]])
 
-def scattering_uniform_layer(lattice, eps_layer, depth, return_eigenspace=False):
-    WI, VI, LI =  solve_uniform_layer(lattice.Kx, lattice.Ky, eps_layer)
-    S = build_scatmat(WI, VI, lattice.W0, lattice.V0, LI, depth, lattice.k0)
+def scattering_uniform_layer(expansion, kp, wl, eps_layer, depth, return_eigenspace=False):
+    kx, ky, _ = expansion.k_vectors(kp, wl)
+    W0, V0 = free_space_eigenmodes(kx, ky)
+    k0 = 2 * np.pi / wl
+    WI, VI, LI =  solve_uniform_layer(kx, ky, eps_layer)
+    S = build_scatmat(WI, VI, W0, V0, LI, depth, k0)
     if return_eigenspace:
-        return S, LI, WI, VI
+        return S, (LI, WI, VI)
     else:
         return S
 
-def scattering_structured_layer(lattice, epsilon_map, depth, return_eigenspace=False):
-    C = convolution_matrix(epsilon_map, lattice.pw)
-    IC = convolution_matrix(1/epsilon_map, lattice.pw)
+def scattering_structured_layer(expansion, kp, wl, epsilon_map, depth, return_eigenspace=False):
+    kx, ky, _ = expansion.k_vectors(kp, wl)
+    W0, V0 = free_space_eigenmodes(kx, ky)
+    k0 = 2 * np.pi / wl
+    C = convolution_matrix(epsilon_map, expansion.pw)
+    IC = convolution_matrix(1/epsilon_map, expansion.pw)
 
-    WI, VI, ev =  solve_structured_layer(lattice.Kx, lattice.Ky, C, IC)
-    S = build_scatmat(WI, VI, lattice.W0, lattice.V0, ev, depth, lattice.k0)
+    WI, VI, LI =  solve_structured_layer(kx, ky, C)
+    S = build_scatmat(WI, VI, W0, V0, LI, depth, k0)
     if return_eigenspace:
-        return S, ev, WI, VI
+        return S, (LI, WI, VI)
     else:
         return S
 
