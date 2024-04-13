@@ -6,6 +6,7 @@
 pip install 'bast @ git+https://github.com/Kaeryv/Bast'
 ```
 
+![Discord](https://img.shields.io/discord/1228737702149623809?style=flat-square)
 [![Python package](https://github.com/Kaeryv/Bast/actions/workflows/python-package.yml/badge.svg)](https://github.com/Kaeryv/Bast/actions/workflows/python-package.yml)
 
 RCWA Implementation fully in python!
