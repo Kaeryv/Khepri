@@ -27,8 +27,10 @@ def kz_from_kplanar(kx, ky, k0, epsilon):
 
 
 class Expansion:
-    def __init__(self, pw, lattice) -> None:
+    def __init__(self, pw, lattice=None) -> None:
         self.pw = pw
+        if lattice is None:
+            lattice = np.asarray([[1,0],[0,1]])
         self.a = np.linalg.norm(lattice[0])
         self.reciprocal = np.asarray(reciproc(lattice[0], lattice[1]))
         self.expansion_indices = generate_expansion_indices(pw)
