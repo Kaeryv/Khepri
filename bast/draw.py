@@ -7,7 +7,9 @@ def uniform(shape, epsilon=1):
     return np.ones(shape)*epsilon
 
 class Drawing:
-    def __init__(self, shape, epsilon, lattice) -> None:
+    def __init__(self, shape, epsilon, lattice=None) -> None:
+        if lattice is None:
+            lattice = np.array([[1,0],[0,1]])
         self._canvas = uniform(shape, epsilon=epsilon)
         self.x0, self.y0, self.x1, self.y1 = -0.5, -0.5, 0.5, 0.5
         self.xbar = np.linspace(-0.5, 0.5, shape[0])
