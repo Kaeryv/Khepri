@@ -1,9 +1,10 @@
 import numpy as np
+from numpy.fft import fft2, fftshift, ifftshift,ifft2
 from scipy.interpolate import RegularGridInterpolator
+
+
 def uniform(shape, epsilon=1):
     return np.ones(shape)*epsilon
-
-
 
 class Drawing:
     def __init__(self, shape, epsilon, lattice) -> None:
@@ -16,11 +17,14 @@ class Drawing:
         self.nX, self.nY = np.meshgrid(self.xbar, self.ybar, indexing="ij")
         self.X = lattice[0, 0] * self.nX + lattice[1, 0] * self.nY
         self.Y = lattice[0, 1] * self.nX + lattice[1, 1] * self.nY
+
+        self.geometric_description = list()
     
 
     def circle(self, xy, radius, epsilon):
         x, y = xy
         self._canvas[np.sqrt((self.X-x)**2+(self.Y-y)**2) <= radius] = epsilon
+        self.geometric_description.append({"type": "disc", "params": [*xy, radius], "epsilon": epsilon})
     
     def rectangle(self, xy, wh, epsilon):
         x, y = xy
@@ -46,16 +50,33 @@ class Drawing:
             print(XY.shape)
             return interp(XY).reshape(shape)
 
-    def plot(self, filename=None, what="dielectric", ax=None, **kwargs):
+    def islands(self):
+        return self.geometric_description
+
+    def plot(self, filename=None, what="dielectric", ax=None, tiling=(1,1), **kwargs):
         import matplotlib.pyplot as plt
-        img = self.canvas(**kwargs)
         if ax is None:
             fig, ax = plt.subplots()
-        ax.matshow(img, origin="lower")
+
+        img = self.canvas(**kwargs)
+        if what == "dielectric":
+            pass
+        elif what == "fourier":
+            img = fftshift(fft2(img)) / np.prod(img.shape)
+        elif what == "reconstruct":
+            fourier = fftshift(fft2(img)) / np.prod(img.shape)
+            img = ifft2(ifftshift(fourier)) * np.prod(img.shape)
+        
+        handle = ax.matshow(np.tile(img.real, tiling), origin="lower")
+        plt.colorbar(handle)
+
         if filename is None:
             plt.show()
         else:
             plt.savefig(filename)
+
+
+        return handle
 
 
 

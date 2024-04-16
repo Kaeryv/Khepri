@@ -1,6 +1,5 @@
 import numpy as np
-from .tools import rotation_matrix, reciproc
-
+from .tools import rotation_matrix, reciproc, unitcellarea
 
 def generate_expansion_indices(pw):
     """
@@ -37,6 +36,7 @@ class Expansion:
             self.reciprocal[:, :, np.newaxis] * self.expansion_indices[:, np.newaxis],
             axis=0,
         )
+        self.sigma = unitcellarea(*lattice)
 
     def _compute_k_vector(self, k_parallel, wavelength):
         self._k_vectors = np.zeros((3, np.prod(self.pw)), dtype=np.complex128)
@@ -71,8 +71,24 @@ class Expansion:
         return e
 
     @property
-    def g_vectors(self):
-        return self._g_vectors.copy()
+    def g_vectors(self, mul=None):
+        if mul is None:
+            return self._g_vectors.copy()
+        else:
+            expansion_indices = generate_expansion_indices((e*2 for e in self.pw))
+            return np.sum(
+                self.reciprocal[:, :, np.newaxis] * expansion_indices[:, np.newaxis],
+                axis=0,
+            )
+
+    def g_vectors_expanded(self, mul):
+        epw = [e*mul for e in self.pw]
+        expansion_indices = generate_expansion_indices(epw)
+        return *np.sum(
+            self.reciprocal[:, :, np.newaxis] * expansion_indices[:, np.newaxis],
+            axis=0,
+        ), epw
+
 
     def k_vectors(self, k_parallel, wavelength):
         self._compute_k_vector(k_parallel=k_parallel, wavelength=wavelength)

@@ -80,6 +80,12 @@ class Crystal:
         """
         self.layers[name] = Layer.pixmap(self.expansion, epsilon, depth)
 
+    def add_layer_analytical(self, name, epsilon, epsilon_host, depth):
+        """
+        Add a layer from 2D ndarray that provides eps(x,y). This method will use FFT.
+        """
+        self.layers[name] = Layer.analytical(self.expansion, epsilon, epsilon_host, depth)
+
     def add_layer(self, name, layer, extended=False):
         if extended:
             self.layers[name] = EL(self.expansion, layer)

@@ -30,28 +30,29 @@ def block2dense(block_matrix):
     return dense.reshape([blocks_shape[i]*submatrices_shape[i] for i in [0,1]])
 
 
-def convolution_matrix(structure, harmonics, dtype=np.complex128, fourier=False):
+def convolution_matrix(structure, harmonics):
+    fourier = np.fft.fftshift(np.fft.fft2(structure)) / prod(structure.shape)
+    return convolution_matrix_fourier(fourier, harmonics)
+
+
+def convolution_matrix_fourier(fourier_coefficients, harmonics, dtype=np.complex128, fourier=False):
     convmat_dim = prod(harmonics)
     convmat_shape = convmat_dim, convmat_dim
     convmat = np.zeros(convmat_shape, dtype=dtype)
 
-    Nx, Ny = structure.shape
+    Nx, Ny = fourier_coefficients.shape
     P, Q = harmonics
 
     g0 = np.array([floor(n/2) for n in (Nx, Ny)])
 
     gparkour = list(product(range(Q), range(P)))
-    if fourier is False:
-        fourier = np.fft.fftshift(np.fft.fft2(structure)) / prod(structure.shape)
-    else:
-        fourier = structure.copy()
     for qrow, prow in gparkour:
         row = qrow*P + prow
         for qcol, pcol in gparkour:
             col = qcol*P + pcol
             gd = np.array([prow - pcol, qrow - qcol])
             g = g0 + gd
-            convmat[row, col] = fourier[g[0], g[1]]
+            convmat[row, col] = fourier_coefficients[g[0], g[1]]
     return convmat.astype("complex")
 
 
