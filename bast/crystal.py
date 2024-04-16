@@ -63,8 +63,8 @@ class Crystal:
         self.stack_positions = []
 
     @classmethod
-    def from_expansion(cls, expansion, a=1, epsi=1, epse=1, void=False):
-        obj = cls(expansion.pw, a=a, epse=epse, epsi=epsi, void=void)
+    def from_expansion(cls, expansion, a=1, epsi=1, epse=1, void=False, lattice='square'):
+        obj = cls(expansion.pw, epse=epse, epsi=epsi, void=void, lattice=lattice)
         obj.expansion = expansion
         return obj
 
