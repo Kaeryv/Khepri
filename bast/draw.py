@@ -6,12 +6,16 @@ def uniform(shape, epsilon=1):
 
 
 class Drawing:
-    def __init__(self, shape, epsilon) -> None:
+    def __init__(self, shape, epsilon, lattice) -> None:
         self._canvas = uniform(shape, epsilon=epsilon)
         self.x0, self.y0, self.x1, self.y1 = -0.5, -0.5, 0.5, 0.5
-        self.xaxis = np.linspace(self.x0, self.x1, shape[0], endpoint=True)
-        self.yaxis = np.linspace(self.y0, self.y1, shape[1], endpoint=True)
-        self.X, self.Y = np.meshgrid(self.xaxis, self.yaxis, indexing="ij")
+        self.xbar = np.linspace(-0.5, 0.5, shape[0])
+        self.ybar = np.linspace(-0.5, 0.5, shape[1])
+        #self.xaxis = np.linspace(self.x0, self.x1, shape[0], endpoint=True)
+        #self.yaxis = np.linspace(self.y0, self.y1, shape[1], endpoint=True)
+        self.nX, self.nY = np.meshgrid(self.xbar, self.ybar, indexing="ij")
+        self.X = lattice[0, 0] * self.nX + lattice[1, 0] * self.nY
+        self.Y = lattice[0, 1] * self.nX + lattice[1, 1] * self.nY
     
 
     def circle(self, xy, radius, epsilon):
@@ -34,7 +38,7 @@ class Drawing:
         else:
             XY = np.vstack((self.X.flat,self.Y.flat))
             print(XY.shape)
-            interp = RegularGridInterpolator((self.xaxis, self.yaxis), self._canvas, method=interp_method)
+            interp = RegularGridInterpolator((self.xbar, self.ybar), self._canvas, method=interp_method)
             xi = np.linspace(self.x0, self.x1, shape[0], endpoint=True)
             yi = np.linspace(self.y0, self.y1, shape[1], endpoint=True)
             X, Y = np.meshgrid(xi, yi)
@@ -42,13 +46,12 @@ class Drawing:
             print(XY.shape)
             return interp(XY).reshape(shape)
 
-            
-
-
-    def plot(self, filename=None, **kwargs):
+    def plot(self, filename=None, what="dielectric", ax=None, **kwargs):
         import matplotlib.pyplot as plt
         img = self.canvas(**kwargs)
-        plt.matshow(img, origin="lower")
+        if ax is None:
+            fig, ax = plt.subplots()
+        ax.matshow(img, origin="lower")
         if filename is None:
             plt.show()
         else:
