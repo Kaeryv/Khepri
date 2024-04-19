@@ -10,7 +10,7 @@ from numpy.testing import assert_allclose
 from bast.tmat.tools import epsilon_g, grid_size
 from bast.fourier import transform
 
-fixtures = "./tests/integration/fixtures/cylinder/"
+fixtures = "./test/integration/fixtures/cylinder/"
 pw = (3, 3)
 a  = nanometers(100)
 wavelength = nanometers(200)

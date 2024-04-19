@@ -15,7 +15,7 @@ from bast.tmat.tools import coords_from_index
 from bast.tmat.tools import epsilon_g, grid_size
 from bast.fourier import transform
 
-fixtures = "./tests/integration/fixtures/veins/"
+fixtures = "./test/integration/fixtures/veins/"
 pw = (6, 6)
 a  = nanometers(100)
 wavelength = nanometers(200)

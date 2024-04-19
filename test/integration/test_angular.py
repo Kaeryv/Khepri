@@ -12,7 +12,7 @@ pw = (3, 3)
 a  = nanometers(100)
 wavelength = nanometers(200)
 M = 20
-fixtures = "./tests/integration/fixtures/"
+fixtures = "./test/integration/fixtures/"
 
 thetas = np.linspace(0, 89.9, M)
 class AngularTest(unittest.TestCase):

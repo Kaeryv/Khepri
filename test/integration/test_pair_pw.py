@@ -17,7 +17,7 @@ import os
 from scipy.io import loadmat
 from numpy.testing import assert_allclose
 
-fixtures = "./tests/integration/fixtures/pair_pw"
+fixtures = "./test/integration/fixtures/pair_pw"
 pw = (8, 8)
 a  = nanometers(100)
 wavelength = nanometers(200)

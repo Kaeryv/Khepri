@@ -15,7 +15,7 @@ import numpy as np
 pw = (1, 1)
 a  = nanometers(100)
 wavelength = nanometers(200)
-fixtures = "./tests/integration/fixtures/1pw/"
+fixtures = "./test/integration/fixtures/1pw/"
 
 class EffectiveMediumTest(unittest.TestCase):
     def test_scattering(self):
