@@ -6,6 +6,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['NUMEXPR_NUM_THREADS'] = '1'
 os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['BAST_MT_ON'] = '0'
 
 from bast.crystal import Crystal
 from bast.draw import Drawing
@@ -152,7 +153,7 @@ def main(pp, zres, progress=True):
         from functools import partial
 
         wl = 1 / ffields #1.428
-        bzi, NS = 25, 31
+        bzi, NS = 45, 31
         kbz = gen_bzi_grid((bzi, bzi), a=1, reciproc=None).reshape(2, -1).T
         
         worker = partial(transverse_fields, wl=wl, bzi=bzi, NS=NS, theta=0)
