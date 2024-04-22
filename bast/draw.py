@@ -36,6 +36,7 @@ class Drawing:
         xmask = (self.X >= x) & (self.X <= x + w)
         ymask = (self.Y >= y) & (self.Y <= y + h)
         self._canvas[xmask & ymask] = epsilon
+        self.geometric_description.append({"type": "rectangle", "params": [*xy, *wh], "epsilon": epsilon})
 
 
     def canvas(self, shape=None, interp_method="linear"):
