@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import special as spe
 import sys
+from . import BAST_MT_ON
 
 
 def fexpz(z: np.array):
@@ -70,7 +71,7 @@ def transform_pixmap(map, Gx, Gy, sigma):
 from numba import njit, prange
 
 
-@njit(parallel=True)
+@njit(parallel=BAST_MT_ON)
 def dft(field, kx, ky, a=1):
     ffields = np.zeros_like(kx, dtype=np.complex128)
     dx = a / len(field)
@@ -90,7 +91,7 @@ def dft(field, kx, ky, a=1):
     return ffields
 
 
-@njit(parallel=True)
+@njit(parallel=BAST_MT_ON)
 def idft(ffield, kx, ky, x, y):
     """
     Turns Fourier-space fields into real-space fields using home-made DFT.
