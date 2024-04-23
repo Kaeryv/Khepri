@@ -1,12 +1,5 @@
 import logging
 
-from types import SimpleNamespace
-from copy import copy
-from cmath import sqrt as csqrt
-
-import numpy as np
-from scipy.linalg import lu_factor
-from numpy.linalg import solve
 
 from .tools import compute_kplanar
 from .alternative import (
@@ -28,6 +21,15 @@ from .fields import fourier2real_xy, longitudinal_fields
 from .layer import stack_layers
 
 from .extension import ExtendedLayer as EL
+
+
+from types import SimpleNamespace
+from copy import copy
+from cmath import sqrt as csqrt
+
+import numpy as np
+from scipy.linalg import lu_factor
+from numpy.linalg import solve
 
 
 class Crystal:
@@ -137,7 +139,7 @@ class Crystal:
     def solve(self):
         # Solving the required layers
         required_layers = set(self.global_stacking)
-
+        logging.debug('Solving each required layer')
         for name in required_layers:
             self.layers[name].solve(self.kp, self.source.wavelength)
 
@@ -155,6 +157,7 @@ class Crystal:
         if not self.void:
             self.stack_positions.insert(0, -np.inf)
 
+        logging.debug('Building the layer stack')
         self.stacking_matrices, self.stacking_reverse_matrices, self.Stot = (
             stack_layers(self.expansion.pw, stacked_layers, self.stack_retain_mask)
         )
@@ -186,6 +189,45 @@ class Crystal:
         logging.debug(f"zr={zr}")
         return self.layers[layer_name], layer_index, zr
 
+    def _fourier_far_fields(self, incident_fields):
+        """Returns the fourier fields in the unit cell for a depth z.
+
+        Args:
+            z (float): z depth
+            incident_fields (tuple): incident fields in Fourier space
+
+        Returns:
+            _type_: fourier fields at depth z.
+        """
+        layer, layer_index, zr = self.locate_layer(1000)
+        assert layer.fields, f"Layer at {z} did not store eigenspace."
+        LI, WI, VI = layer.L, layer.W, layer.V
+        RI = layer_eigenbasis_matrix(WI, VI)
+
+        e = self.expansion
+        Kx, Ky, _ = e.k_vectors(self.kp, self.source.wavelength)
+        if isinstance(layer, Layer):
+            W0, V0 = free_space_eigenmodes(Kx, Ky)
+        else:
+            W0, V0 = layer.W0, layer.V0
+        R0 = layer_eigenbasis_matrix(W0, V0)
+
+        k0 = 2 * np.pi / self.source.wavelength
+
+        Wref = self.layers["Sref"].W
+        Vref = self.layers["Sref"].V
+        Rref = layer_eigenbasis_matrix(Wref, Vref)
+        c1p = np.split(solve(Rref, incident_fields), 2)[0]
+        c1m = self.Stot[0, 0] @ c1p
+        c2p = self.Stot[1, 0] @ c1p
+        c2m = np.zeros_like(c2p)
+        d = layer.depth
+        c2p[np.abs(LI.real)>0] = 0
+        
+        sx, sy, ux, uy = np.split(R0 @ np.hstack((c2p,c2m)), 4)
+        sz, uz = longitudinal_fields((sx, sy, ux, uy), Kx, Ky, layer.IC)
+
+        return sx, sy, sz, ux, uy, uz
     def _fourier_fields(self, z, incident_fields, use_lu=False):
         """Returns the fourier fields in the unit cell for a depth z.
 
@@ -280,7 +322,10 @@ class Crystal:
         e = self.expansion
         Kx, Ky, _ = e.k_vectors(kp, self.source.wavelength)
 
-        ffields = self._fourier_fields(z, incident_fields, use_lu=use_lu)
+        if isinstance(z, str) and z == 'farfield':
+            ffields = self._fourier_far_fields(incident_fields)
+        else:
+            ffields = self._fourier_fields(z, incident_fields, use_lu=use_lu)
         k0 = 2 * np.pi / self.source.wavelength
 
         fields = [fourier2real_xy(s, k0 * Kx, k0 * Ky, x, y) for s in ffields]
