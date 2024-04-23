@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.fft import fft2, fftshift, ifftshift,ifft2
 from scipy.interpolate import RegularGridInterpolator
-
+from copy import copy
 
 def uniform(shape, epsilon=1):
     return np.ones(shape)*epsilon
@@ -80,6 +80,46 @@ class Drawing:
 
 
         return handle
+    
+    def from_numpy(self, X, background=1.0):
+        '''
+            Will convert numpy array geometry to islands description.
+        '''
+        shape = X.shape
+        if len(shape) > 1 and shape[0] > 1 and shape[1] > 1:
+            raise NotImplementedError("Currently only supporting 1D gratings.")
+        X = X.flatten()
+        length = X.shape[0]
+        materials = np.unique(X).tolist()
+        current_material = materials.index(X[0])
+        previous_material = copy(current_material)
+        background_material = materials.index(background)
+        current_material_start = 0
+        material_intervals = list()
+        for i in range(1, length):
+            current_material = materials.index(X[i])
+            if current_material != previous_material:
+                if previous_material != background_material:
+                    material_intervals.append((current_material_start, i, materials[previous_material]))
+                    current_material_start = copy(i)
+                else:
+                    current_material_start = copy(i)
+
+                previous_material = copy(current_material)
+        
+        if current_material != background_material:
+            material_intervals.append((current_material_start, length, materials[current_material]))
+
+        material_intervals = np.asarray(material_intervals)
+        boundaries = (material_intervals[:, :2] - length / 2) / length
+        centers = (boundaries[:,1] + boundaries[:,0]) / 2
+        widths  = (boundaries[:,1] - boundaries[:,0])
+
+        for e, c, w in zip(material_intervals[:,-1], centers, widths):
+            self.rectangle((c, 0), (w, 1), e)
+
+            
+            
 
 
 
