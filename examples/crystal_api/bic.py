@@ -1,6 +1,8 @@
 import sys
 sys.path.append(".")
 
+# Results from https://www.nature.com/articles/s41566-020-0658-1
+
 import os
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -28,13 +30,13 @@ import logging
 
 from multiprocessing import Pool
 lattice = "square"
-pp = 13
+pp = 5
 n1 = 2.02
-r  = 0.368
-depth = 0.316
+r  = 0.368+0.005
+depth = 0.316+0.05
 pol = (1.0, 1j)
 fmin, fmax = 0.57, 0.88
-ffields = 0.715
+ffields = 0.71428
 
 # lattice = "hexagonal"
 # pp = 3
@@ -62,7 +64,7 @@ def solve(conf, return_crystal=False, fields=False, slicing=1):
     stacking.extend(["1"]*slicing)
 
     if fields:
-        stacking.extend(["2"]*(13*slicing))
+        stacking.extend(["2"]*(1*slicing))
         
     cl.set_device(stacking, [fields]*len(stacking))
     
@@ -79,24 +81,22 @@ def transverse_fields(kp, wl, bzi, NS, theta=0):
     x, y, _ = coords(0, bzi, 0, bzi, 0, 0, (NS*bzi, NS*bzi, 1))
     z = np.zeros_like(x)
     source_real = shifted_rotated_fields(
-        _paraxial_gaussian_field_fn, x, y, z, wl, np.max(x)/2, np.max(y)/2, 1+depth/2, theta, 0, 0, beam_waist=3)
+        _paraxial_gaussian_field_fn, x, y, z, wl, np.max(x)/2, np.max(y)/2, 1+depth/2, theta, 0, 0, beam_waist=7)
     source_real = np.asarray(source_real)
     source_real = np.swapaxes(source_real, 0, 2)
     source_real = np.swapaxes(source_real, 1, 3)
     
-    source_real[...,0, 1] = source_real[...,0, 0] * 1j
+    source_real[...,0, 1] = source_real[...,0, 0] * -1j # ey leads ex by pi/2
     #source_real[...,1, 0] = source_real[...,0, 1]
-    source_real[...,1, 1] = source_real[...,1, 0] * 1j
-    #print(source_real.shape)
-    #exit()
+    source_real[...,1, 1] = source_real[...,0, 0] * 0 * -1j # hy leads ex by pi/2
+    source_real[...,1, 0] = source_real[...,0, 1] * 0 * +1j # hx lags  ey by pi/2
 
-    _, cl = solve((wl, kp), return_crystal=True, fields=True, slicing=1)
+    _, cl = solve((wl, kp), return_crystal=True, fields=True)
     F = amplitudes_from_fields(source_real, cl.expansion, wl, kp, x, y, (bzi, bzi), a=1).flatten()
-    E, _ = cl.fields_coords_xy(x, y, cl.zmax+12.1, F, use_lu=False)
+    E, _ = cl.fields_coords_xy(x, y, 'farfield', F, use_lu=False) #cl.zmax+0.5
     return E
 
 def main(pp, zres, progress=True):
-  
     if False:
         M = 100
         L = 201
@@ -121,7 +121,7 @@ def main(pp, zres, progress=True):
 
     if False:
         wl = 1/ffields #1.428
-        RT, cl = solve((wl, (0,0.07*np.pi)), return_crystal=True, fields=True, slicing=3)
+        RT, cl = solve((wl, (0,0.07*np.pi)), return_crystal=True, fields=True, slicing=5)
         x, y, z = coords(0, 1, 0.25, 0.25, -1.4, cl.zmax+1.4, (100, 1, zres))
         zvals = tqdm(z) if progress else z
         E, H = cl.fields_volume(x, y, zvals)
@@ -153,30 +153,29 @@ def main(pp, zres, progress=True):
         from functools import partial
 
         wl = 1 / ffields #1.428
-        bzi, NS = 45, 31
+        bzi, NS = 41, 21
         kbz = gen_bzi_grid((bzi, bzi), a=1, reciproc=None).reshape(2, -1).T
-        
+
         worker = partial(transverse_fields, wl=wl, bzi=bzi, NS=NS, theta=0)
         configs = [kp for kp in kbz]
 
         E_integrated = np.zeros((3, NS*bzi, NS*bzi), dtype='complex')
-        with Pool(8) as p:
-            fields = list()
+        with Pool(12) as p:
             for e in tqdm(p.imap_unordered(worker, configs), total=len(configs) ):
                 E_integrated += e
 
         fig, axs = plt.subplots(4, 2, figsize=(5,10))
         ecircular = E_integrated[0] - 1j * E_integrated[1]
-        axs[0,0].matshow(np.abs(ecircular), cmap="hot")
+        axs[0,0].matshow(np.abs(ecircular)**2, cmap="hot")
         axs[0,1].matshow(np.angle(ecircular), cmap="hsv", vmin=-np.pi, vmax=np.pi)
         ecircular = E_integrated[0] + 1j * E_integrated[1]
-        axs[1,0].matshow(np.abs(ecircular), cmap="hot")
+        axs[1,0].matshow(np.abs(ecircular)**2, cmap="hot")
         axs[1,1].matshow(np.angle(ecircular), cmap="hsv", vmin=-np.pi, vmax=np.pi)
 
-        axs[2,0].matshow(np.abs(E_integrated[0]), cmap="hot", vmax=15)
+        axs[2,0].matshow(np.abs(E_integrated[0])**2, cmap="hot")
         axs[2,1].matshow(np.angle(E_integrated[0]), cmap="hsv", vmin=-np.pi, vmax=np.pi)
 
-        axs[3,0].matshow(np.abs(E_integrated[1]), cmap="hot", vmax=15)
+        axs[3,0].matshow(np.abs(E_integrated[1])**2, cmap="hot")
         axs[3,1].matshow(np.angle(E_integrated[1]), cmap="hsv", vmin=-np.pi, vmax=np.pi)
         fig.savefig("BIC_PROFILE.png")
 
