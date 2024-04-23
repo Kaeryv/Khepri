@@ -159,34 +159,23 @@ def _paraxial_gaussian_field_fn(x, y, z, wl, beam_waist=1, er=1):
     return (ex, ey, ez), (hx, hy, hz)
 
 def amplitudes_from_fields(fields, e, wl, kp, x, y, bzs, a=1):
-    import matplotlib.pyplot as plt
     kxi, kyi = kp
     # Find mode coefficients
     phase = np.exp(1j*(kxi*x+kyi*y)) # There is no incidence angle.
     F = fields / phase[..., np.newaxis, np.newaxis]
     F = np.asarray(np.split(F, bzs[0], axis=1))
     F = np.asarray(np.split(F, bzs[1], axis=1))
+
     NS = F.shape[2]
-    #F = np.swapaxes(F, 0,1)
     kx, ky = e.g_vectors
-    #k0 = 2*np.pi/wl
-    #kx, ky = kx, ky
     F = F.reshape(-1, NS, NS, 2, 3)
     F = F[..., :2].reshape(-1, NS, NS, 4)
     Fdft = np.empty((prod(bzs), 4, prod(e.pw)), dtype=np.complex128)
-    done = False
+
     for i in range(F.shape[0]):
         for j in range(4):
             Fdft[i, j] = dft(F[i, ..., j], kx, ky, a=a).reshape(e.pw).flatten() / F.shape[0]/F.shape[1]
-            # if done:
-            #     continue
-            # done = True
-            # p1 = dft2(F[i, ..., j],kx,ky, a=a, method="linear").flatten() / F.shape[0]/F.shape[1]
-            # p2 = dft(F[i, ..., j],kx,ky, a=a).flatten() / F.shape[0]/F.shape[1]
-            # _, (ax1,ax2) = plt.subplots(2)
-            # ax1.matshow(np.abs(p1).reshape(9,9).T)
-            # ax2.matshow(np.abs(p2).reshape(9,9))
-            # plt.show()
+
     return np.sum(Fdft, 0)
 
 def gen_bzi_grid(shape, a=1, reciproc=None):
