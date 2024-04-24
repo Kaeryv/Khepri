@@ -1,3 +1,11 @@
+"""
+    A class for designing RCWA's 2D extruded patterns.
+    This class can be replaced by you numpy drawing skills.
+    Note that:
+        arrays are indexed a[x,y].
+"""
+
+
 import numpy as np
 from numpy.fft import fft2, fftshift, ifftshift,ifft2
 from scipy.interpolate import RegularGridInterpolator
@@ -21,12 +29,13 @@ class Drawing:
         self.Y = lattice[0, 1] * self.nX + lattice[1, 1] * self.nY
 
         self.geometric_description = list()
+        self.background = epsilon
     
 
     def circle(self, xy, radius, epsilon):
         x, y = xy
-        self._canvas[np.sqrt((self.X-x)**2+(self.Y-y)**2) <= radius] = epsilon
-        self.geometric_description.append({"type": "disc", "params": [*xy, radius], "epsilon": epsilon})
+        self._canvas[np.sqrt((self.X-x)**2+(self.Y-y)**2) < radius] = epsilon
+        self.geometric_description.append({"type": "disc", "params": [0.5+xy[0], 0.5+xy[1], radius], "epsilon": epsilon})
     
     def rectangle(self, xy, wh, epsilon):
         x, y = xy
@@ -36,7 +45,8 @@ class Drawing:
         xmask = (self.X >= x) & (self.X <= x + w)
         ymask = (self.Y >= y) & (self.Y <= y + h)
         self._canvas[xmask & ymask] = epsilon
-        self.geometric_description.append({"type": "rectangle", "params": [*xy, *wh], "epsilon": epsilon})
+        bounds = [0.5 + x, 0.5+y, 0.5+x+w, 0.5+y+h]
+        self.geometric_description.append({"type": "rectangle", "params": bounds, "epsilon": epsilon})
 
 
     def canvas(self, shape=None, interp_method="linear"):
@@ -44,13 +54,11 @@ class Drawing:
             return self._canvas.copy()
         else:
             XY = np.vstack((self.X.flat,self.Y.flat))
-            print(XY.shape)
             interp = RegularGridInterpolator((self.xbar, self.ybar), self._canvas, method=interp_method)
             xi = np.linspace(self.x0, self.x1, shape[0], endpoint=True)
             yi = np.linspace(self.y0, self.y1, shape[1], endpoint=True)
             X, Y = np.meshgrid(xi, yi)
             XY = np.vstack((X.flat, Y.flat)).T
-            print(XY.shape)
             return interp(XY).reshape(shape)
 
     def islands(self):
@@ -70,7 +78,7 @@ class Drawing:
             fourier = fftshift(fft2(img)) / np.prod(img.shape)
             img = ifft2(ifftshift(fourier)) * np.prod(img.shape)
         
-        handle = ax.matshow(np.tile(img.real, tiling), origin="lower")
+        handle = ax.matshow(np.tile(img.real, tiling).T, origin="lower")
         plt.colorbar(handle)
 
         if filename is None:
@@ -81,7 +89,7 @@ class Drawing:
 
         return handle
     
-    def from_numpy(self, X, background=1.0):
+    def from_numpy(self, X):
         '''
             Will convert numpy array geometry to islands description.
         '''
@@ -90,10 +98,17 @@ class Drawing:
             raise NotImplementedError("Currently only supporting 1D gratings.")
         X = X.flatten()
         length = X.shape[0]
+
         materials = np.unique(X).tolist()
+        if len(materials) == 1:
+            # If there is only on value it should be the background
+            # No need to compute anything
+            self.background = materials[0]
+            return
+
         current_material = materials.index(X[0])
         previous_material = copy(current_material)
-        background_material = materials.index(background)
+        background_material = materials.index(self.background)
         current_material_start = 0
         material_intervals = list()
         for i in range(1, length):
