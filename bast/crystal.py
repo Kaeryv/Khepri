@@ -72,7 +72,8 @@ class Crystal:
 
     def add_layer_uniform(self, name, epsilon, depth):
         """
-        Add layer without planar structuration. It will be processed analytically.
+        Add layer without planar structuration. It will be processed analytically
+        without solving any eigenvalue problem
         """
         self.layers[name] = Layer.uniform(self.expansion, epsilon, depth)
 
