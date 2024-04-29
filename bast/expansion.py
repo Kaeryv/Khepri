@@ -84,7 +84,7 @@ class Expansion:
             )
 
     def g_vectors_expanded(self, mul):
-        epw = [e*mul for e in self.pw]
+        epw = [e*mul for e in self.pw if e > 1 else 1]
         expansion_indices = generate_expansion_indices(epw)
         return *np.sum(
             self.reciprocal[:, :, np.newaxis] * expansion_indices[:, np.newaxis],
