@@ -133,10 +133,10 @@ class Layer:
             islands_data = [ (transform(isl["type"], isl["params"], Gx, Gy, sigma), isl["epsilon"]) for isl in self.epsilon ]
 
             
-            fourier = combine_fourier_masks(islands_data, self.eps_host, inverse=False)
+            fourier = combine_fourier_masks(islands_data, self.eps_host, inverse=False).T
             self.C = convolution_matrix_fourier(fourier.reshape(epw), self.expansion.pw)
 
-            fourier = combine_fourier_masks(islands_data, self.eps_host, inverse=True)
+            fourier = combine_fourier_masks(islands_data, self.eps_host, inverse=True).T
             self.IC = convolution_matrix_fourier(fourier.reshape(epw), self.expansion.pw)
 
             self.W, self.V, self.L = solve_structured_layer(Kx, Ky, self.C)
