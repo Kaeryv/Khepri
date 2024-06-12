@@ -124,7 +124,8 @@ class Layer:
 
         if self.formulation == Formulation.FFT:
             self.C = convolution_matrix(self.epsilon, self.expansion.pw)
-            self.IC = convolution_matrix(1 / self.epsilon, self.expansion.pw)
+            #self.IC = convolution_matrix(1 / self.epsilon, self.expansion.pw)
+            self.IC = np.linalg.inv(self.C)
             self.W, self.V, self.L = solve_structured_layer(Kx, Ky, self.C)
             self.S = build_scatmat(self.W, self.V, W0, V0, self.L, self.depth, k0)
         if self.formulation == Formulation.ANALYTICAL:
@@ -137,7 +138,8 @@ class Layer:
             self.C = convolution_matrix_fourier(fourier.reshape(epw), self.expansion.pw)
 
             fourier = combine_fourier_masks(islands_data, self.eps_host, inverse=True)
-            self.IC = convolution_matrix_fourier(fourier.reshape(epw), self.expansion.pw)
+            #self.IC = convolution_matrix_fourier(fourier.reshape(epw), self.expansion.pw)
+            self.IC = np.linalg.inv(self.C)
 
             self.W, self.V, self.L = solve_structured_layer(Kx, Ky, self.C)
             self.S = build_scatmat(self.W, self.V, W0, V0, self.L, self.depth, k0)
