@@ -59,6 +59,16 @@ plt.show()
 
 ![](examples/figures/suh03.png)
 
+## Field maps
+
+### Electro-magnetic field for the above structure
+
+![](examples/figures/Efield_holey_pair.png)
+
+### Poynting vector for the above structure
+
+![](examples/figures/Poynting_holey_pair.png)
+
 ## Testing
 
 Some integration tests can be ran with

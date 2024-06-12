@@ -4,7 +4,7 @@ sys.path.append(".")
 from bast.crystal import Crystal
 from bast.draw import Drawing
 from bast.constants import c
-from bast.misc import coords
+from bast.misc import coords, quiver, poynting_vector
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -42,31 +42,52 @@ def main(pp, zres, progress=True):
         plt.savefig("Spectra_holey_pair.png")
 
     if True:
-        wl = 1/0.4 #1.428
-        cl.set_source(wl, 1.0, 1.0, 0, 0)
+        wl = 2.04 #1/0.4 #1.428
+        cl.set_source(wl, 1.0, 0.0, 0, 0)
         cl.solve()
-        x, y, z = coords(0, 1, 0.5, 0.5, 0.0001, cl.stack_positions[-2], (100, 1, zres))
+        xyres = 50
+        x, y, z = coords(0, 1, 0.0, 1.0, 0.0001, cl.depth, (xyres, xyres, zres))
+        cut = xyres // 2
         zvals = tqdm(z) if progress else z
         E, H = cl.fields_volume(x, y, zvals)
-        Exxz = E[:, 0].real
-        Eyxz = E[:, 1].real
-        E, H = cl.fields_volume(y, x, z)
-        Exyz = E[:, 0].real
-        Eyyz = E[:, 1].real
+        
+        Exxz = E[:, 0, :, cut].real
+        Eyxz = E[:, 1, :, cut].real
+        Exyz = E[:, 0, cut, :].real
+        Eyyz = E[:, 1, cut, :].real
+
         fig, axs = plt.subplots(2, 2, figsize=(4,6))
         axs = axs.flatten()
         extent = [np.min(x), np.max(x), np.min(z), np.max(z)]
-        for i, e in enumerate([Exxz, Eyxz, Exyz, Eyyz]):
+        names = ["Ex-xz", "Ey-xz", "Ex-yz","Ey-yz"]
+        for i, (e, n) in enumerate(zip([Exxz, Eyxz, Exyz, Eyyz], names)):
             e = np.squeeze(e)
             mx = np.max(e.real)
-            axs[i].set_title(f"{i}")
-            axs[i].matshow(e.real, origin="lower",cmap="RdBu", extent=extent, vmax=mx, vmin=-mx)
-        for ax in axs:
-            for z in cl.stack_positions[1:-1]:
-                ax.axhline(z, color="w", alpha=0.5)
+            axs[i].set_title(n)
+            im = axs[i].matshow(e.real, origin="lower",cmap="RdBu", extent=extent, vmax=mx, vmin=-mx)
+            plt.colorbar(im)
+            for zl in cl.stack_positions[1:-1]:
+                axs[i].axhline(zl, color="k", alpha=0.5)
 
-        plt.savefig(f"Efield_holey_pair.png", transparent=True)
+        fig.tight_layout()
+        fig.savefig(f"Efield_holey_pair.png", transparent=True)
+        P = poynting_vector(E, H, 1)
+        Pyz = P[:, :, cut, :].real
+        Pyznorm = np.linalg.norm(Pyz, axis=1)
+        Pxz = P[:, :, :, cut].real
+        Pxznorm = np.linalg.norm(Pxz, axis=1)
 
+        fig, (ax1,ax2) = plt.subplots(1, 2, figsize=(4,6))
+        im1 = ax1.matshow(Pyznorm, cmap="magma", origin="lower",vmin=0, extent=extent)
+        yz1, yz2 = np.meshgrid(y[:,0], z)
+        quiver(ax1, yz1, yz2, Pyz[:, 2], Pyz[:, 1], subsample=4, color="w")
+        im2 = ax2.matshow(Pxznorm, origin="lower",cmap="magma", vmin=0, extent=extent)
+        quiver(ax2, yz1, yz2, Pxz[:, 2], Pxz[:, 0] , subsample=4, color="w")
+        ax1.set_title("Poynting-YZ")
+        ax2.set_title("Poynting-XZ")
+        fig.colorbar(im1)
+        fig.colorbar(im2)
+        fig.savefig(f"Poynting_holey_pair.png", transparent=True)
 
 if __name__ == '__main__':
     main(7, 128)
