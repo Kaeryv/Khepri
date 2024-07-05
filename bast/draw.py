@@ -31,7 +31,6 @@ class Drawing:
         self.geometric_description = list()
         self.background = epsilon
     
-
     def circle(self, xy, radius, epsilon):
         x, y = xy
         self._canvas[np.sqrt((self.X-x)**2+(self.Y-y)**2) < radius] = epsilon
@@ -48,6 +47,17 @@ class Drawing:
         bounds = [0.5 + x, 0.5+y, 0.5+x+w, 0.5+y+h]
         self.geometric_description.append({"type": "rectangle", "params": bounds, "epsilon": epsilon})
 
+    def ellipse(self, xy, ab, r_rad, epsilon):
+        x, y = xy
+        a, b = ab
+        A = (np.cos(r_rad)**2 / a**2) + (np.sin(r_rad)**2 / b**2)
+        B = (np.cos(r_rad)**2 / b**2) + (np.sin(r_rad)**2 / a**2)
+        C = 2 * np.cos(r_rad) * np.sin(r_rad) * (1/a**2-1/b**2)
+        dsqr = (self.X-x)**2 + (self.Y-y)**2
+        theta = np.arctan2(self.Y-y, self.X-x)
+        irsqr = A*np.cos(theta)**2+B*np.sin(theta)**2+C*np.sin(theta)*np.cos(theta)
+        self._canvas[dsqr < 1.0 / irsqr] = epsilon
+        self.geometric_description.append({"type": "ellipse", "params": (x,y,a,b,r_rad), "epsilon": epsilon})
 
     def canvas(self, shape=None, interp_method="linear"):
         if shape is None:
@@ -67,7 +77,7 @@ class Drawing:
     def plot(self, filename=None, what="dielectric", ax=None, tiling=(1,1), **kwargs):
         import matplotlib.pyplot as plt
         if ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(5,5))
 
         img = self.canvas(**kwargs)
         if what == "dielectric":
@@ -78,7 +88,8 @@ class Drawing:
             fourier = fftshift(fft2(img)) / np.prod(img.shape)
             img = ifft2(ifftshift(fourier)) * np.prod(img.shape)
         
-        handle = ax.matshow(np.tile(img.real, tiling).T, origin="lower")
+        handle = ax.matshow(np.tile(img.real, tiling).T, extent=[self.x0, self.x1, self.y0, self.y1], origin="lower", cmap="Blues")
+        ax.axis("equal")
         plt.colorbar(handle)
 
         if filename is None:
@@ -92,6 +103,7 @@ class Drawing:
     def from_numpy(self, X):
         '''
             Will convert numpy array geometry to islands description.
+            This has limits and only works for 1D array.
         '''
         shape = X.shape
         if len(shape) > 1 and shape[0] > 1 and shape[1] > 1:
