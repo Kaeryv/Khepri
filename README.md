@@ -63,6 +63,12 @@ plt.show()
 
 ### Electro-magnetic field for the above structure
 
+```python
+x, y, z = coords(0, 1, 0.0, 1.0, 0.0001, cl.depth, (xyres, xyres, zres))
+zvals = tqdm(z) if progress else z # progress bar on depth
+E, H = cl.fields_volume(x, y, z)
+```
+
 ![](examples/figures/Efield_holey_pair.png)
 
 ### Poynting vector for the above structure
