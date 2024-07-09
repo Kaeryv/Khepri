@@ -33,6 +33,10 @@ class Field(IntEnum):
 
 
 def stack_layers(pw, layers, mask):
+    '''
+    Takes as input a list of layers and a conform list of booleans.
+    The boolean dictates if we plan on keeping the fields for the layer.
+    '''
     Stot = scattering_identity(pw, block=True)
     Sls = []
     for i, layer in enumerate(layers):
@@ -124,7 +128,6 @@ class Layer:
 
         if self.formulation == Formulation.FFT:
             self.C = convolution_matrix(self.epsilon, self.expansion.pw)
-            #self.IC = convolution_matrix(1 / self.epsilon, self.expansion.pw)
             self.IC = np.linalg.inv(self.C)
             self.W, self.V, self.L = solve_structured_layer(Kx, Ky, self.C)
             self.S = build_scatmat(self.W, self.V, W0, V0, self.L, self.depth, k0)
@@ -138,7 +141,6 @@ class Layer:
             self.C = convolution_matrix_fourier(fourier.reshape(epw), self.expansion.pw)
 
             fourier = combine_fourier_masks(islands_data, self.eps_host, inverse=True).T
-            #self.IC = convolution_matrix_fourier(fourier.reshape(epw), self.expansion.pw)
             self.IC = np.linalg.inv(self.C)
 
             self.W, self.V, self.L = solve_structured_layer(Kx, Ky, self.C)
@@ -163,18 +165,3 @@ class Layer:
             self.V = None
             self.L = None
             self.IC = None
-
-        """
-            l2 = Lattice((7,7), self.a, self.source.wavelength, (0,0))
-            islands_data = [ 
-            ( transform(isl.shape, isl.params, 
-            l2.kx.reshape((7,7)), 
-            l2.ky.reshape((7,7)),
-            lattice.area), 
-            isl.epsilon) for isl in current.islands ]
-            fourier = epsilon_g((7,7), islands_data, current.epsilon_host)
-            ifourier = epsilon_g((7,7), islands_data, current.epsilon_host, inverse=True)
-            current.fourier = fourier
-            current.C = convolution_matrix(fourier, lattice.pw, fourier=True)
-            current.IC = convolution_matrix(ifourier, lattice.pw, fourier=True)
-        """

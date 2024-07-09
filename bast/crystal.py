@@ -371,7 +371,6 @@ class Crystal:
         self.kzi = np.conj(csqrt(self.k0**2 * eps_inc - kxi**2 - kyi**2))
 
     def poynting_flux_end(self, only_total=True):
-        # lattice = Lattice(self.pw, self.a, self.source.wavelength, self.kp)
         incident_fields = incident(
             self.pw,
             self.source.te,
@@ -388,6 +387,8 @@ class Crystal:
             self.kp,
             self.source.wavelength,
             only_total=only_total,
+            epsi=self.epsi,
+            epse=self.epse
         )
         R = poynting_fluxes(
             self.expansion,
@@ -395,6 +396,8 @@ class Crystal:
             self.kp,
             self.source.wavelength,
             only_total=only_total,
+            epsi=self.epsi,
+            epse=self.epsi
         )
         if only_total:
             return R.real, T.real

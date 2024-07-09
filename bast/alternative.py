@@ -8,6 +8,7 @@
     S22 = S[1,1]
     S = [[S11, S12], [S21, S22]]
 """
+
 import numpy as np
 from math import prod, floor, sqrt
 from numpy.lib.scimath import sqrt as csqrt
@@ -248,12 +249,11 @@ def scattering_identity(pw, block=False):
     return SI
 
 
-def poynting_fluxes(expansion, c_output, kp, wavelength, only_total=True):
-    epsi=1
+def poynting_fluxes(expansion, c_output, kp, wavelength, only_total=True, epsi=1, epse=1):
     k0 = 2 * np.pi / wavelength
     kzi = np.conj(csqrt(k0**2*epsi-kp[0]**2-kp[1]**2))
     sx, sy = np.split(c_output, 2)
-    kx, ky, kz = expansion.k_vectors(kp, wavelength)
+    kx, ky, kz = expansion.k_vectors(kp, wavelength, epse)
     sz = - (kx * sx + ky * sy) / kz
     t = k0 * kz.real / kzi * (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
     if only_total:

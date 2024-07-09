@@ -40,13 +40,13 @@ class Expansion:
         )
         self.sigma = unitcellarea(*lattice)
 
-    def _compute_k_vector(self, k_parallel, wavelength):
+    def _compute_k_vector(self, k_parallel, wavelength, epsilon):
         self._k_vectors = np.zeros((3, np.prod(self.pw)), dtype=np.complex128)
         k0 = 2 * np.pi / wavelength
         self._k_vectors[0:2, :] = (
             np.asarray(k_parallel)[:, np.newaxis] + self._g_vectors
         )
-        self._k_vectors[2, :] = kz_from_kplanar(*self._k_vectors[:2, :], k0, 1.0)
+        self._k_vectors[2, :] = kz_from_kplanar(*self._k_vectors[:2, :], k0, epsilon)
         self._k_vectors /= k0
 
     def rotate(self, angle_deg):
@@ -92,8 +92,8 @@ class Expansion:
         ), epw
 
 
-    def k_vectors(self, k_parallel, wavelength):
-        self._compute_k_vector(k_parallel=k_parallel, wavelength=wavelength)
+    def k_vectors(self, k_parallel, wavelength, epsilon=1):
+        self._compute_k_vector(k_parallel, wavelength, epsilon)
         return self._k_vectors
 
     def plot(self, what="gxy", ax=None, show=False):
