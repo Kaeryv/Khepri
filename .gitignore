@@ -13,3 +13,5 @@ build/
 *.pkl
 *.gif
 *.svg
+*.log
+config
