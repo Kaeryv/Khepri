@@ -49,17 +49,18 @@ def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3), fields
     return twcl
 
 if sys.argv[1] == "RT":
-    M = 60
+    M = 201
     RT = np.zeros((M,2))
     angle = float(sys.argv[3])
     for i, f in enumerate(np.linspace(0.7, 0.83, M)):
         twcl = solve_crystal(1/f, angle, pw=(5,5))
         RT[i] = twcl.poynting_flux_end()
 
-    fig, ax = plt.subplots()
-    ax.plot(RT[:, 0], label="R")
-    ax.plot(RT[:, 1], label="T")
-    fig.savefig(sys.argv[2])
+    if sys.argv[2] != 'n':
+        fig, ax = plt.subplots()
+        ax.plot(RT[:, 0], label="R")
+        ax.plot(RT[:, 1], label="T")
+        fig.savefig(sys.argv[2])
     if len(sys.argv) >= 5:
         np.save(sys.argv[4], RT)
 
