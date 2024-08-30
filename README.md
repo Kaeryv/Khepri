@@ -1,6 +1,6 @@
 # Bast
 
-![](khepri-light.png#gh-light-mode-onlyL | width=300)
+![](khepri-light.png#gh-light-mode-onlyL){: width="50%"}
 
 
 ## Installation
