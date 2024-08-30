@@ -1,5 +1,8 @@
 # Bast
 
+![](khepri-light.png#gh-light-mode-only)
+
+
 ## Installation
 
 ```bash
