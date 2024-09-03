@@ -18,11 +18,10 @@ def generate_expansion_indices(pw):
 
 def kz_from_kplanar(kx, ky, k0, epsilon):
     arg = k0**2 * epsilon - kx**2 - ky**2
-    kz = np.conj(np.sqrt(arg.astype("complex")))
-    mask = np.logical_or(
-        kz.imag < 0.0, np.logical_and(np.isclose(kz.imag, 0.0), kz.real < 0.0)
-    )
-    np.negative(kz, where=mask, out=kz)
+    kz = arg.astype("complex")
+    mask = kz.real < 0
+    kz[mask] = -1j * np.sqrt(-kz[mask])
+    kz[~mask] = np.sqrt(kz[~mask])
     return kz
 
 
@@ -59,8 +58,8 @@ class Expansion:
         g_sum = np.empty((2, self.g_vectors.shape[1] * rhs.g_vectors.shape[1]))
 
         i = 0
-        for g2 in rhs.g_vectors.T:
-            for g1 in self.g_vectors.T:
+        for g2 in self.g_vectors.T:
+            for g1 in rhs.g_vectors.T:
                 g_sum[:, i] = g1 + g2
                 i += 1
 
