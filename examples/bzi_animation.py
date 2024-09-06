@@ -22,7 +22,11 @@ NS = 31
 wl = 1.1
 w0 = 2 * wl
 zmax=28
+pw = (7, 1)
 theta = np.deg2rad(25)
+eps1 = 1
+eps2 = 4
+
 from bast.beams import gen_bzi_grid
 
 kbz = gen_bzi_grid((bzx, bzy))
@@ -30,7 +34,7 @@ print(kbz.shape)
 kbz = kbz.reshape(2, -1).T
 
 
-kxi, kyi = compute_kplanar(1, wl, np.rad2deg(theta), 0)
+kxi, kyi = compute_kplanar(eps1, wl, np.rad2deg(theta), 0)
 kbz[:, 0] += kxi.real
 kbz[:, 1] += kyi.real
 
@@ -40,29 +44,24 @@ X, Y = np.meshgrid(X, Y)
 Z = np.zeros_like(X)
 source_real=shifted_rotated_fields(
     _paraxial_gaussian_field_fn, X, Y, Z,
-    wl, bzx/2, bzy/2, -zmax/2, theta, 0, np.pi/2, beam_waist=w0)
+    wl, bzx/2, bzy/2, -zmax/2, theta, 0, np.pi/2, beam_waist=w0, er=eps1)
 
 source_real = np.asarray(source_real)
 source_real = np.swapaxes(source_real, 0, 2)
 source_real = np.swapaxes(source_real, 1, 3)
-print("src", source_real.shape)
-pw = (7, 1)
 canvas_size = (512,512)
 
 e1 = Expansion(pw)
-eps1 = 1
-eps2 = 4
-
-cvn = Drawing((128,128), 1)
+cvn = Drawing((128,128), eps1)
 cvn.rectangle((0,0), (0.5, 1), eps2)
 fields = None
-if False:
+if True:
     for kp in kbz:
-        cl = Crystal(pw, epse=4, epsi=1)
+        cl = Crystal(pw, epse=eps2, epsi=eps1)
         cl.add_layer_uniform("S1", eps1, 0.99)
         #cl.add_layer_uniform("S3", 4.0, 0.4)
         cl.add_layer_pixmap("S3", cvn.canvas(), 0.4)
-        cl.add_layer_uniform("S2", 4, 16.99)
+        cl.add_layer_uniform("S2", eps2, 16.99)
         stack =["S1"]*14
         stack.extend(["S3"]*1)
         stack.extend(["S2"])
@@ -72,7 +71,7 @@ if False:
         F = amplitudes_from_fields(source_real, e1, wl, kp, X, Y, (bzx, bzy))
         x, y, z = coords(0, bzx, bzy/2, bzy/2, 0.01, zmax, (3, 512, 512))
         S, U = np.split(F.flatten(), 2)
-        F  = S, np.zeros_like(U)
+        F  = S, U #np.zeros_like(U)
         E, H = cl.fields_volume(x, y, z, incident_fields=F)
         if fields is None:
             fields = np.asarray((E,H))
@@ -112,8 +111,8 @@ else:
     ax.axhline(0.99*14, color="k")
     ax.arrow(23.5, 22, -5*np.sin(theta), -5*np.cos(theta), head_width=0.5,head_length=0.5,length_includes_head=True,color="green")
     m = np.array([-2, -1, 0, 1, 2, 3])
-    anglest = np.arcsin(1/2*np.sin(theta) - m * wl/2)
-    anglesr = np.arcsin(1*np.sin(theta) - m * wl)
+    anglest = np.arcsin(np.sqrt(eps1)/np.sqrt(eps2)*np.sin(theta) - m * wl/np.sqrt(eps2))
+    anglesr = np.arcsin(np.sin(theta) - m * wl/np.sqrt(eps1))
     for angle in anglest:
         ax.arrow(20, 14, -5*np.sin(angle), -5*np.cos(angle), head_width=0.5,head_length=0.5,length_includes_head=True,color="black")
     for angle in anglesr:
