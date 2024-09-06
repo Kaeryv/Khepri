@@ -82,8 +82,7 @@ def scattering_transmission(KX, KY, W0, V0, er, ur=1):
     Kz = np.conj(csqrt(arg))
     eigenvals = np.hstack((1j*Kz, 1j*Kz))
     Wtrans = np.identity(2*N)
-    #eigenvals = csqrt(eigenvals)
-    #inv_lambda = np.diag(np.reciprocal(eigenvals))
+
     Vtrans = Qref / eigenvals
     A = solve(W0, Wtrans) + solve(V0, Vtrans)
     B = solve(W0, Wtrans) - solve(V0, Vtrans)
