@@ -48,8 +48,8 @@ class Expansion:
         self._k_vectors[2, :] = kz_from_kplanar(*self._k_vectors[:2, :], k0, epsilon)
         self._k_vectors /= k0
 
-    def rotate(self, angle_deg):
-        self._g_vectors = rotation_matrix(np.deg2rad(angle_deg)) @ self._g_vectors
+    def rotate(self, angle_rad):
+        self._g_vectors = rotation_matrix(angle_rad) @ self._g_vectors
 
     def __add__(self, rhs):
         """
