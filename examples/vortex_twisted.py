@@ -72,7 +72,7 @@ source_real = np.swapaxes(source_real, 0, 2)
 source_real = np.swapaxes(source_real, 1, 3)
 
 pattern = Drawing((128,128), 8)
-pattern.circle((0,0), 0.4, 1)
+pattern.disc((0,0), 0.4, 1)
 pwx = int(sys.argv[2])
 pw = (pwx, pwx)
 def get_crystals(kbz, twisted=False):

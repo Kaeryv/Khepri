@@ -15,7 +15,7 @@ pw = (3,3)
 N = 256
 canvas_size = (N,N)
 pattern = Drawing(canvas_size, 4)
-pattern.circle((0,0), 0.25, 1.0)
+pattern.disc((0,0), 0.25, 1.0)
 #pattern.plot(shape=(100,100), interp_method="pchip", filename="pattern.png")
 
 cup = Crystal(pw, void=True)

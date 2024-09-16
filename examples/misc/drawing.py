@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 canvas_size = 64, 64
 d = Drawing(canvas_size, 2)
-d.circle((0,0), 0.4, 3)
+d.disc((0,0), 0.4, 3)
 d.ellipse((0,0), (0.2,0.4), 0, 4)
 d.ellipse((0,0), (0.2,0.4), 3.1415/2, 4.5)
 d.ellipse((0,0), (0.2,0.4), 3.1415/4, 4.7)

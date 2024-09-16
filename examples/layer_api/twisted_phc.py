@@ -18,7 +18,7 @@ pw = (3, 3)
 N = 256
 canvas_size = (N,N)
 pattern = Drawing(canvas_size, 4)
-pattern.circle((0,0), 0.25, 1.0)
+pattern.disc((0,0), 0.25, 1.0)
 #pattern.rectangle((0,0), (1, 0.25), 1.0)
 
 

@@ -51,7 +51,7 @@ def solve(conf, return_crystal=False, fields=False, slicing=1):
 
     N = 512
     d = Drawing((N, N), n1**2)
-    d.circle((0.0, 0.0), r, 1.0)
+    d.disc((0.0, 0.0), r, 1.0)
     #d.plot("test.png")
 
     cl = Crystal((pp,pp), lattice=lattice)

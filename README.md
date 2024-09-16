@@ -38,7 +38,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 d = Drawing((128,)*2, 12, None)
-d.circle((0.0, 0.0), 0.4, 1.0)
+d.disc((0.0, 0.0), 0.4, 1.0)
 
 cl = Crystal((5,5))
 cl.add_layer_uniform("S1", 1, 1.1)

@@ -17,7 +17,7 @@ from glob import glob
     Define the pattern (common to both layers)
 '''
 pattern = Drawing((256,256), 4)
-pattern.circle((0,0), 0.25, 1)
+pattern.disc((0,0), 0.25, 1)
 
 '''
     Define the crystal layers. 

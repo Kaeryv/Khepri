@@ -14,11 +14,16 @@ import logging
 # If you want more info
 #logging.getLogger().setLevel(logging.DEBUG)
 
-def main(pp, zres, progress=True):
+def main(pp, zres, progress=True, 
+         output_drawing="test/figures/crystal-eps.png", 
+         output_spectra="test/figures/crystal-rt.png",
+         output_fields="test/figures/crystal-fields.png",
+         output_poynting="test/figures/crystal-poynting.png",
+         ):
     N = 512
     d = Drawing((N, N), 12)
-    d.circle((0.0, 0.0), 0.4, 1.0)
-    d.plot("test.png")
+    d.disc((0.0, 0.0), 0.4, 1.0)
+    d.plot(output_drawing)
 
     cl = Crystal((pp,pp))
     cl.add_layer_uniform("S1", 1, 1.1)
@@ -28,7 +33,7 @@ def main(pp, zres, progress=True):
 
 
     # Compute spectrum
-    if False:
+    if True:
         chart = list()
         freqs = np.linspace(0.49, 0.6, 151)
         for f in freqs:
@@ -39,7 +44,7 @@ def main(pp, zres, progress=True):
         plt.figure()
         plt.plot(freqs, np.asarray(chart)[:, 1])
         plt.axvline(0.5185, color="k")
-        plt.savefig("Spectra_holey_pair.png")
+        plt.savefig(output_spectra)
 
     if True:
         wl = 2.04 #1/0.4 #1.428
@@ -70,7 +75,7 @@ def main(pp, zres, progress=True):
                 axs[i].axhline(zl, color="k", alpha=0.5)
 
         fig.tight_layout()
-        fig.savefig(f"Efield_holey_pair.png", transparent=True)
+        fig.savefig(output_fields, transparent=True)
         P = poynting_vector(E, H, 1)
         Pyz = P[:, :, cut, :].real
         Pyznorm = np.linalg.norm(Pyz, axis=1)
@@ -87,7 +92,7 @@ def main(pp, zres, progress=True):
         ax2.set_title("Poynting-XZ")
         fig.colorbar(im1)
         fig.colorbar(im2)
-        fig.savefig(f"Poynting_holey_pair.png", transparent=True)
+        fig.savefig(output_poynting, transparent=True)
 
 if __name__ == '__main__':
     main(7, 128)

@@ -85,7 +85,7 @@ from bast.alternative import incident
 
 fields = list()
 pattern = Drawing((128,128), 4)
-pattern.circle((0,0), 0.25, 1)
+pattern.disc((0,0), 0.25, 1)
 
 
 '''
