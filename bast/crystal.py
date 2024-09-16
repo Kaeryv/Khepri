@@ -365,7 +365,6 @@ class Crystal:
         return fields[:, 0, ...], fields[:, 1, ...]
 
     def set_source(self, wavelength, te=1.0, tm=1.0, theta=0.0, phi=0.0, kp=None):
-        eps_inc = 1.0
         if kp is not None:
             self.kp = kxi, kyi = kp
             self.source = SimpleNamespace(
@@ -376,11 +375,11 @@ class Crystal:
                 te=te, tm=tm, theta=theta, phi=phi, wavelength=wavelength
             )
             self.kp = kxi, kyi = compute_kplanar(
-                eps_inc, wavelength, self.source.theta, self.source.phi
+                self.epsi, wavelength, self.source.theta, self.source.phi
             )
 
         self.k0 = 2 * np.pi / wavelength
-        self.kzi = np.conj(csqrt(self.k0**2 * eps_inc - kxi**2 - kyi**2))
+        self.kzi = np.conj(csqrt(self.k0**2 * self.epsi - kxi**2 - kyi**2))
 
     def poynting_flux_end(self, only_total=True):
         incident_fields = incident(
