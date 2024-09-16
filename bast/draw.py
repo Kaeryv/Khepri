@@ -22,8 +22,9 @@ class Drawing:
         self.geometric_description = list()
 
         if lattice is None:
-            lattice = np.array([Axis.X, Axis.Y])
-        
+            self.lattice = lattice = np.array([Axis.X, Axis.Y])
+        self.lattice = lattice
+
         self.background = epsilon_background
         self._canvas = uniform(shape, epsilon=epsilon_background)
         self.x0, self.y0, self.x1, self.y1 = -0.5, -0.5, 0.5, 0.5
@@ -72,6 +73,7 @@ class Drawing:
         x, y = xy
         b, h = bh
         y = y -  h / 2
+        tantilt = np.tan(tilt_rad) * self.lattice[0, 0] / self.lattice[1, 1]
         
         for i in range(self._canvas.shape[1]):
             if np.all(self.Y[:, i] <= y):
@@ -79,7 +81,7 @@ class Drawing:
             elif np.all(self.Y[:, i] - y >= h):
                 break
             else:
-                start = x -b /2 + np.tan(tilt_rad) * self.Y[0, i] #(self.Y[0, i]) / b_over_h + x
+                start = x -b /2 + tantilt * self.Y[0, i] #(self.Y[0, i]) / b_over_h + x
                 end = start + b
                 self._canvas[(self.X[:, i] >start) & (self.X[:, i] <= end), i] = epsilon
 

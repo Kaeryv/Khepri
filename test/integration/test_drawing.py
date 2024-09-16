@@ -126,8 +126,8 @@ class DrawingTest(unittest.TestCase):
 
 
     def test_parallelograms(self):
-        d = Drawing((512, 512), 1)
-        d.parallelogram((-0.25,0.0), (0.5, 0.5), 10, 8)
+        d = Drawing((512, 512), 1, lattice=np.array([[1,0],[0,5]]))
+        d.parallelogram((0.0,0.0), (0.5, 5), np.deg2rad(10), 8)
         d.plot("test/figures/parallelogram.png", shape=(512,16))
 
 if __name__ == "__main__":
