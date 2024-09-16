@@ -27,15 +27,15 @@ class Drawing:
 
         self.background = epsilon_background
         self._canvas = uniform(shape, epsilon=epsilon_background)
-        self.x0, self.y0, self.x1, self.y1 = -0.5, -0.5, 0.5, 0.5
         self.xbar = np.linspace(-0.5, 0.5, shape[0])
         self.ybar = np.linspace(-0.5, 0.5, shape[1])
-        #self.xaxis = np.linspace(self.x0, self.x1, shape[0], endpoint=True)
-        #self.yaxis = np.linspace(self.y0, self.y1, shape[1], endpoint=True)
 
         self.nX, self.nY = np.meshgrid(self.xbar, self.ybar, indexing="ij")
         self.X = lattice[0, 0] * self.nX + lattice[1, 0] * self.nY
         self.Y = lattice[0, 1] * self.nX + lattice[1, 1] * self.nY
+        self.x0, self.y0, self.x1, self.y1 = np.min(self.X), np.min(self.Y), np.max(self.X), np.max(self.Y)
+        self.x = np.linspace(self.x0, self.x1, shape[0])
+        self.y = np.linspace(self.y0, self.y1, shape[1])
 
     
     def disc(self, xy, radius, epsilon):
@@ -73,7 +73,7 @@ class Drawing:
         x, y = xy
         b, h = bh
         y = y -  h / 2
-        tantilt = np.tan(tilt_rad) * self.lattice[0, 0] / self.lattice[1, 1]
+        tantilt = np.tan(tilt_rad)
         
         for i in range(self._canvas.shape[1]):
             if np.all(self.Y[:, i] <= y):
@@ -92,9 +92,9 @@ class Drawing:
             return self._canvas.copy()
         else:
             XY = np.vstack((self.X.flat,self.Y.flat))
-            interp = RegularGridInterpolator((self.xbar, self.ybar), self._canvas, method=interp_method)
-            xi = np.linspace(self.x0, self.x1, shape[0], endpoint=True)
-            yi = np.linspace(self.y0, self.y1, shape[1], endpoint=True)
+            interp = RegularGridInterpolator((self.x, self.y), self._canvas, method=interp_method)
+            xi = np.linspace(self.x0, self.x1, shape[0])
+            yi = np.linspace(self.y0, self.y1, shape[1])
             X, Y = np.meshgrid(xi, yi, indexing="ij")
             XY = np.vstack((X.flat, Y.flat)).T
             return interp(XY).reshape(shape)
