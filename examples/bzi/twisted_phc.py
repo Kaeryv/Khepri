@@ -27,15 +27,14 @@ z0=3
 w0=10
 
 # Worse as angle increases
-twist_angle=float(sys.argv[3])
+twist_angle=np.deg2rad(float(sys.argv[3]))
 
 
 def size(angle_deg):
     angle = np.deg2rad(angle_deg)
     return float(sys.argv[4])/((1/np.cos(angle))-1)
 
-def moire_lattice(angle_deg):
-    angle = np.deg2rad(angle_deg)
+def moire_lattice(angle):
     AM = rot(angle/2)@ np.eye(2)
     AM *= size(angle_deg)
     return AM

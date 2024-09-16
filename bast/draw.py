@@ -65,18 +65,13 @@ class Drawing:
         self._canvas[dsqr < 1.0 / irsqr] = epsilon
         self.geometric_description.append({"type": "ellipse", "params": (x,y,a,b,r_rad), "epsilon": epsilon})
 
-    def parallelogram(self, xy, bh, tilt, epsilon):
+    def parallelogram(self, xy, bh, tilt_rad, epsilon):
         '''
         Parallelogram with basis parallel to x axis.
         '''
         x, y = xy
         b, h = bh
-        hp = h  / np.cos(np.deg2rad(tilt)) / 2
-        r = 90 - tilt
-        bx = hp * np.cos(np.deg2rad(r))
-        x = x #+ bx + b / 2
         y = y -  h / 2
-        b_over_h = np.tan(np.deg2rad(r))
         
         for i in range(self._canvas.shape[1]):
             if np.all(self.Y[:, i] <= y):
@@ -84,7 +79,7 @@ class Drawing:
             elif np.all(self.Y[:, i] - y >= h):
                 break
             else:
-                start = x -b /2 + np.tan(np.deg2rad(tilt)) * self.Y[0, i] #(self.Y[0, i]) / b_over_h + x
+                start = x -b /2 + np.tan(tilt_rad) * self.Y[0, i] #(self.Y[0, i]) / b_over_h + x
                 end = start + b
                 self._canvas[(self.X[:, i] >start) & (self.X[:, i] <= end), i] = epsilon
 

@@ -20,8 +20,8 @@ def size(angle):
 NS = 71
 wl = 0.63
 theta = 0.0*np.pi
-twist_angle = 3
-twcell = size(np.deg2rad(twist_angle))
+twist_angle = np.deg2rad(3)
+twcell = size(twist_angle)
 override=sys.argv[4] == "override"
 ar=4
 zres = 256

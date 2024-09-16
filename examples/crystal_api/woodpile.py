@@ -39,7 +39,7 @@ rods_shift = 0.5
 rods_eps = 3.6**2
 rods_w = 0.28
 
-def solve_rt(frequency, angle_deg, kp=None):
+def solve_rt(frequency, angle, kp=None):
     pw = (pwx, 1)
     canvas_size = (N, 1)
     pattern = Drawing(canvas_size, 1)
@@ -50,7 +50,7 @@ def solve_rt(frequency, angle_deg, kp=None):
     pattern2.rectangle((-rods_shift, 0), (rods_w, 1), rods_eps)
     e1 = Expansion(pw)
     e2 = Expansion(pw)
-    e2.rotate(angle_deg)
+    e2.rotate(angle)
 
     """
         Define the crystal layers. (Be careful that layers with different twist angles are different objects.)
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     NF = 203
     NA = 90
     if sys.argv[1] == "ct":
-        angles = np.linspace(45, 90, NA)
+        angles = np.deg2rad(np.linspace(45, 90, NA))
         frequencies = np.linspace(0.4, 0.65, NF)
         from itertools import product
     

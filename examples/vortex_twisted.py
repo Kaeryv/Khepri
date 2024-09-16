@@ -16,11 +16,10 @@ from bast.tools import rotation_matrix as rot
 from bast.tools import reciproc
 
 # Worse as angle increases
-twist_angle=20
+twist_angle=np.deg2rad(20)
 
 
-def moire_lattice(angle_deg):
-    angle = np.deg2rad(angle_deg)
+def moire_lattice(angle):
     R = rot(np.pi/2)
     R1 = rot(angle/2)
     R2 = rot(-angle/2)
