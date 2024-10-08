@@ -19,13 +19,13 @@ if py_ver[1] < 4:
     requirements.append('enum')
 
 setup(
-    name='bast',
+    name='khepri',
     version='0.1.1',
     python_requires='>=3.3, <4',
     description='UNamur Physics Department RCWA Solver',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/kaeryv/bast',
+    url='https://github.com/kaeryv/khepri',
     author='Kaeryv',
     author_email='nicolas.roy@unamur.be',
     classifiers=[  
@@ -42,11 +42,11 @@ setup(
 
     keywords='rcwa electromagnetic solver maxwell',
 
-    packages=['bast'],
+    packages=['khepri'],
     install_requires=requirements,
  
     project_urls={  # Optional
-        'Bug Reports': 'https://github.com/kaeryv/bast/issues',
-        'Source': 'https://github.com/kaeryv/bast/',
+        'Bug Reports': 'https://github.com/kaeryv/khepri/issues',
+        'Source': 'https://github.com/kaeryv/khepri/',
     },
 )

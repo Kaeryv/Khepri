@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.special import genlaguerre
 from math import prod
-from bast.fourier import dft
+from khepri.fourier import dft
 
 def rotation_matrix(polar_angle, azimuthal_angle, polarization_angle):
     cos_polar = np.cos(polar_angle)

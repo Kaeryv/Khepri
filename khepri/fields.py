@@ -78,7 +78,7 @@ def fourier2real_fft(ffield, a, target_resolution=(127,127), kp=(0,0)):
 #     field = np.sum(field, axis=0)
 #     return field.reshape(coord_shape).T
 
-from bast.fourier import idft
+from khepri.fourier import idft
 fourier2real_xy  = idft
 
 # def dft(field, x, y, kx, ky):

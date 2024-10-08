@@ -1,9 +1,9 @@
 import unittest
 import numpy as np
 
-from bast.tmat.tools import nanometers
-from bast.tmat.lattice import CartesianLattice
-from bast.tmat.scattering import scattering_matrix
+from khepri.tmat.tools import nanometers
+from khepri.tmat.lattice import CartesianLattice
+from khepri.tmat.scattering import scattering_matrix
 import numpy as np
 from scipy.io import loadmat
 from numpy.testing import assert_allclose

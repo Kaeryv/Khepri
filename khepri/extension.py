@@ -4,8 +4,8 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided
 from math import prod
 
-from bast.layer import Layer
-from bast.alternative import free_space_eigenmodes
+from khepri.layer import Layer
+from khepri.alternative import free_space_eigenmodes
 
 def _joint_subspace(submatrices: list, kind=0):
     """

@@ -4,9 +4,9 @@
     Comparison is made against validated matlab RCWA.
 """
 import unittest
-from bast.tmat.tools import nanometers
-from bast.tmat.lattice import CartesianLattice
-from bast.tmat.scattering import scattering_matrix
+from khepri.tmat.tools import nanometers
+from khepri.tmat.lattice import CartesianLattice
+from khepri.tmat.scattering import scattering_matrix
 
 from numpy.testing import assert_allclose
 from scipy.io import loadmat

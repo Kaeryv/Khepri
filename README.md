@@ -6,7 +6,7 @@
 ## Installation
 
 ```bash
-pip install 'bast @ git+https://github.com/Kaeryv/Khepri'
+pip install 'khepri @ git+https://github.com/Kaeryv/Khepri'
 ```
 
 ![Discord](https://img.shields.io/discord/1228737702149623809?style=flat-square)
@@ -14,7 +14,7 @@ pip install 'bast @ git+https://github.com/Kaeryv/Khepri'
 
 RCWA Implementation fully in python!
 - Two implementations are available
-- Easy-to-use script with json input files available in exebutable module `bast.ez`
+- Easy-to-use script with json input files available in exebutable module `khepri.ez`
 
 ## Brillouin zone integration of fields
 
@@ -32,8 +32,8 @@ The code enables the use of extended RCWA, allowing for twisted bilayer systems.
 Here is a sample code to get tou started, don't hesitate to contact me on Github if you need help (via issues for example).
 
 ```python
-from bast.crystal import Crystal
-from bast.draw import Drawing
+from khepri.crystal import Crystal
+from khepri.draw import Drawing
 import matplotlib.pyplot as plt
 import numpy as np
 

@@ -1,7 +1,7 @@
 from enum import IntEnum
-from bast.tools import convolution_matrix, convolution_matrix_fourier
-from bast.fourier import transform, combine_fourier_masks
-from bast.alternative import (
+from khepri.tools import convolution_matrix, convolution_matrix_fourier
+from khepri.fourier import transform, combine_fourier_masks
+from khepri.alternative import (
     solve_structured_layer,
     solve_uniform_layer,
     build_scatmat,

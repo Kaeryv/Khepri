@@ -7,7 +7,7 @@ import numpy as np
 
 from scipy.linalg import norm
 
-from bast.constants import *
+from khepri.constants import *
 
 def nanometers(x: float) -> float:
     """ Convert nanometers to meters."""

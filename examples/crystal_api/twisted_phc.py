@@ -10,16 +10,16 @@ os.environ['BAST_MT_ON'] = '0'
 
 from functools import partial
 from multiprocessing import Pool
-from bast.crystal import Crystal
-from bast.draw import Drawing
-from bast.expansion import Expansion
-from bast.layer import Layer
+from khepri.crystal import Crystal
+from khepri.draw import Drawing
+from khepri.expansion import Expansion
+from khepri.layer import Layer
 import matplotlib.pyplot as plt
 import numpy as np
-from bast.crystal import Crystal
+from khepri.crystal import Crystal
 from tqdm import tqdm
-from bast.misc import coords
-from bast.tools import rotation_matrix as rot
+from khepri.misc import coords
+from khepri.tools import rotation_matrix as rot
 from glob import glob
 from itertools import product
 

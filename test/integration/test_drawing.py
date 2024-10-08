@@ -10,9 +10,9 @@ if __name__ == "__main__":
 
 
 import unittest
-from bast.draw import Drawing
-from bast.expansion import Expansion
-from bast.fourier import transform, combine_fourier_masks
+from khepri.draw import Drawing
+from khepri.expansion import Expansion
+from khepri.fourier import transform, combine_fourier_masks
 from numpy.testing import assert_allclose
 import numpy as np
 import matplotlib.pyplot as plt

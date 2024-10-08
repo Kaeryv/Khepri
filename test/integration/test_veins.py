@@ -4,16 +4,16 @@
 
 import unittest
 
-from bast.tmat.tools import nanometers
-from bast.tmat.matrices import multS
-from bast.tmat.lattice import CartesianLattice
+from khepri.tmat.tools import nanometers
+from khepri.tmat.matrices import multS
+from khepri.tmat.lattice import CartesianLattice
 import numpy as np
 from scipy.io import loadmat
 from numpy.testing import assert_allclose
-from bast.tmat.tools import coords_from_index
+from khepri.tmat.tools import coords_from_index
 
-from bast.tmat.tools import epsilon_g, grid_size
-from bast.fourier import transform
+from khepri.tmat.tools import epsilon_g, grid_size
+from khepri.fourier import transform
 
 fixtures = "./test/integration/fixtures/veins/"
 pw = (6, 6)
@@ -41,7 +41,7 @@ class TestVeins(unittest.TestCase):
 
 
     def test_fourier(self):
-        from bast.fourier import transform
+        from khepri.fourier import transform
         data = loadmat(f"{fixtures}/fourier.mat")
         val = np.asarray(data['Omega_g'], dtype=complex)
         
@@ -102,7 +102,7 @@ class TestVeins(unittest.TestCase):
         boolean_field = transform("rectangle", [veins * a, veins*a, a*(1-veins), a  *(1-veins) ],  lattice.Gx, lattice.Gy, lattice.area)
         data = loadmat(f"{fixtures}/S.mat")
         
-        from bast.tmat.matrices import matrix_a, matrix_s
+        from khepri.tmat.matrices import matrix_a, matrix_s
         from scipy.linalg import expm
         _, q = grid_size(pw)
         epsg = epsilon_g(q, [(boolean_field, 1.0)], 8.9)

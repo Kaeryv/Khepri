@@ -1,0 +1,61 @@
+# From https://doi.org/10.1103/PhysRevLett.126.136101
+configurations:
+  twisted:
+    type: twisted
+    twist_angle: 6
+    twisted_group: 1
+
+    stacking:
+      - layer: Scup
+      - layer: Sair
+      - layer: Scdo
+      - layer: Sbuffer
+
+pattern: &pattern
+  epsilon: 4.0
+  islands:
+    - type: disc
+      r: 0.25
+      x: 0
+      y: 0
+      epsilon: 1
+
+layers:
+  - name: Sref
+    type: half_infinite
+    epsilon: 1.0
+    side: reflexion
+    group: 0
+
+  - name: Strans
+    type: half_infinite
+    epsilon: 1.0
+    side: transmission
+    group: 1
+
+  - name: Scup
+    type: patterned
+    depth: 0.2
+    pattern: *pattern
+    group: 0
+
+  - name: Scdo
+    type: patterned
+    depth: 0.2
+    pattern: *pattern
+    group: 1
+
+  - name: Sbuffer
+    type: uniform
+    epsilon: 1.0
+    depth: 0.9
+    group: 1
+
+  - name: Sair
+    type: uniform
+    epsilon: 1.0
+    depth: 0.3
+    group: 0
+
+
+  

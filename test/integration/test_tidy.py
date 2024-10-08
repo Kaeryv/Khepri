@@ -1,10 +1,10 @@
 import unittest
 
-from bast.crystal import Crystal
-from bast.draw import Drawing
+from khepri.crystal import Crystal
+from khepri.draw import Drawing
 import matplotlib.pyplot as plt
 import numpy as np
-from bast.crystal import Crystal
+from khepri.crystal import Crystal
 
 N = 512
 pwx = 9

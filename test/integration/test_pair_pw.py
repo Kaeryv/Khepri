@@ -3,12 +3,12 @@ import unittest
 
 import pickle
 
-from bast.tmat.tools import nanometers, coords_from_index
-from bast.tmat.matrices import multS
-from bast.tmat.lattice import CartesianLattice
-from bast.tmat.scattering import scattering_matrix
-from bast.fourier import transform
-from bast.eigentricks import scattering_splitlr, scattering_det
+from khepri.tmat.tools import nanometers, coords_from_index
+from khepri.tmat.matrices import multS
+from khepri.tmat.lattice import CartesianLattice
+from khepri.tmat.scattering import scattering_matrix
+from khepri.fourier import transform
+from khepri.eigentricks import scattering_splitlr, scattering_det
 from tqdm import tqdm
 import numpy as np
 from itertools import product
@@ -44,7 +44,7 @@ class TestCylinder2(unittest.TestCase):
 
 
     def test_fourier(self):
-        from bast.fourier import transform
+        from khepri.fourier import transform
         data = loadmat(f"{fixtures}/fourier.mat")
         val = np.asarray(data['Omega_g'], dtype=complex)
         
@@ -88,8 +88,8 @@ class TestCylinder2(unittest.TestCase):
         assert_allclose(U, data["U_in"])
         assert_allclose(Vi, data["V_in"])
 
-        from bast.tmat.tools import epsilon_g, grid_size
-        from bast.fourier import transform
+        from khepri.tmat.tools import epsilon_g, grid_size
+        from khepri.fourier import transform
         lattice = CartesianLattice(pw, a1=(a, 0.0), a2=(0.0, a), eps_emerg=1.0, eps_incid=1.0, dtype=np.float64)
         boolean_field = transform("disc", [0.5*a, 0.5*a, 0.2*a], lattice.Gx, lattice.Gy, lattice.area)
         
@@ -103,12 +103,12 @@ class TestCylinder2(unittest.TestCase):
     def test_matrices(self):
         lattice = CartesianLattice(pw, a1=(a, 0.0), a2=(0.0, a), eps_emerg=1.0, eps_incid=1.0, dtype=np.float64)
         U, Vi = lattice.U(wavelength, kp), lattice.Vi(wavelength, kp)
-        from bast.tmat.tools import epsilon_g, grid_size
-        from bast.fourier import transform
+        from khepri.tmat.tools import epsilon_g, grid_size
+        from khepri.fourier import transform
         boolean_field = transform("disc", [0.5*a, 0.5*a, 0.2*a], lattice.Gx, lattice.Gy, lattice.area)
         data = loadmat(f"{fixtures}/S.mat")
         
-        from bast.tmat.matrices import matrix_a, matrix_s
+        from khepri.tmat.matrices import matrix_a, matrix_s
         from scipy.linalg import expm
         _, q = grid_size(pw)
         epsg = epsilon_g(q, [(boolean_field, 8.9)], 1.0)

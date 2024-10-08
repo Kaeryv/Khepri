@@ -1,14 +1,14 @@
 import unittest
 
-from bast.tmat.tools import nanometers, coords_from_index
-from bast.tmat.matrices import multS
-from bast.tmat.lattice import CartesianLattice
+from khepri.tmat.tools import nanometers, coords_from_index
+from khepri.tmat.matrices import multS
+from khepri.tmat.lattice import CartesianLattice
 import numpy as np
 from scipy.io import loadmat
 from numpy.testing import assert_allclose
 
-from bast.tmat.tools import epsilon_g, grid_size
-from bast.fourier import transform
+from khepri.tmat.tools import epsilon_g, grid_size
+from khepri.fourier import transform
 
 fixtures = "./test/integration/fixtures/cylinder/"
 pw = (3, 3)
@@ -34,7 +34,7 @@ class TestCylinder(unittest.TestCase):
 
 
     def test_fourier(self):
-        from bast.fourier import transform
+        from khepri.fourier import transform
         data = loadmat(f"{fixtures}/fourier.mat")
         val = np.asarray(data['Omega_g'], dtype=complex)
         
@@ -95,7 +95,7 @@ class TestCylinder(unittest.TestCase):
         boolean_field = transform("disc", [0.5*a, 0.5*a, 0.2*a], lattice.Gx, lattice.Gy, lattice.area)
         data = loadmat(f"{fixtures}/S.mat")
         
-        from bast.tmat.matrices import matrix_a, matrix_s
+        from khepri.tmat.matrices import matrix_a, matrix_s
         from scipy.linalg import expm
         _, q = grid_size(pw)
         epsg = epsilon_g(q, [(boolean_field, 8.9)], 1.0)

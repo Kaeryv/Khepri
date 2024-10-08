@@ -1,5 +1,5 @@
 if __name__ != "__main__":
-    print("This module is an executable one, launch using 'python -m bast.ez'")
+    print("This module is an executable one, launch using 'python -m khepri.ez'")
     exit()
 
 from argparse import ArgumentParser
@@ -168,7 +168,7 @@ def compute_spectrum(layers, materials, params, device):
 """
 
 
-from bast.tmat.scattering import scattering_interface
+from khepri.tmat.scattering import scattering_interface
 import matplotlib.pyplot as plt
 
 def cuboid_data(o, size=(1,1,1)):

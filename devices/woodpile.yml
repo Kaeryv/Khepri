@@ -1,0 +1,99 @@
+# From https://doi.org/10.1103/PhysRevLett.126.136101
+configurations:
+  twisted:
+    type: twisted
+    twist_angle: 90
+    twisted_group: 1
+
+    stacking:
+      - layer: SX1
+      - layer: SY1
+      - layer: SX2
+      - layer: SY2
+
+X1: &X1
+  epsilon: 1
+  islands:
+    - type: rectangle
+      params: {'xy': [0,0],'wh': [0.2, 1.0] }
+      epsilon: 13
+X2: &X2
+  epsilon: 1
+  islands:
+    - type: rectangle
+      params: {'xy': [-0.45,0],'wh': [0.1, 1.0] }
+      epsilon: 13
+    - type: rectangle
+      params: {'xy': [0.45,0],'wh': [0.1, 1.0] }
+      epsilon: 13
+
+
+Y1: &Y1
+  epsilon: 1 
+  islands:
+    - type: rectangle
+      params: {'xy': [0,0],'wh': [0.2, 1.0] }
+      epsilon: 13
+
+Y2: &Y2
+  epsilon: 1
+  islands:
+    - type: rectangle
+      params: {'xy': [0,0],'wh': [0.2, 1.0] }
+      epsilon: 13.0
+    - type: rectangle
+      params: {'xy': [0,0],'wh': [0.2, 1.0] }
+      epsilon: 13.0
+
+layers:
+  Sref: &Sref
+    type: half_infinite
+    epsilon: 1.0
+    side: reflexion
+    group: 0
+
+  Strans:
+    <<: *Sref
+    side: transmission
+    group: 1
+
+  SX1: &SX1
+    type: patterned
+    depth: 0.2
+    pattern: *X1
+    group: 0
+
+  SX2: &SX2
+    <<: *SX1
+    pattern: *X2
+  
+  SX1P:
+    <<: *SX1
+    group: 1
+  SX2P:
+    <<: *SX2
+    group: 1
+
+  SY1: &ly
+    <<: *SX1
+    pattern: *Y1
+    group: 1
+
+  SY2:
+    <<: *ly
+    pattern: *Y2
+
+  Sbuffer:
+    type: uniform
+    epsilon: 1.0
+    depth: 0.9
+    group: 1
+
+  Sair:
+    type: uniform
+    epsilon: 1.0
+    depth: 0.3
+    group: 0
+
+
+  
