@@ -1,0 +1,17 @@
+loaders:
+  - type: python
+    search_path: [.]
+processors:
+  - type: filter
+    expression: not name.startswith('khepri.tmat') and default()
+    documented_only: true
+  - type: smart
+  - type: crossref
+renderer:
+  type: markdown
+  pages:
+  - title: API Documentation
+    name: index
+    contents:
+    - khepri.crystal
+    - khepri.layer
