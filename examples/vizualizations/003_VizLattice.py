@@ -13,9 +13,9 @@ if os.path.isfile(args.input):
 
 
 import numpy as np
-from bast.tmat.matrices import multS, matrix_s
-from bast.tmat.lattice import CartesianLattice
-from bast.tools import incident, c, compute_currents, rotation_matrix
+from khepri.tmat.matrices import multS, matrix_s
+from khepri.tmat.lattice import CartesianLattice
+from khepri.tools import incident, c, compute_currents, rotation_matrix
 from math import cos, sin
 import matplotlib.pyplot as plt
 from numpy.lib.stride_tricks import as_strided

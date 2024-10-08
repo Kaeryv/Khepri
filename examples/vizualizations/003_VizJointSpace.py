@@ -3,7 +3,7 @@ Visualisation de la combinaison des matrices S.
 '''
 import sys
 sys.path.append(".")
-from bast.tools import joint_subspace, as_strided, block2dense
+from khepri.tools import joint_subspace, as_strided, block2dense
 import numpy as np
 import matplotlib.pyplot as plt
 import os
