@@ -3,16 +3,13 @@ import sys
 sys.path.append(".")
 
 from bast.crystal import Crystal
-from bast.extension import ExtendedLayer
 from bast.draw import Drawing
 from bast.expansion import Expansion
 from bast.layer import Layer
 import matplotlib.pyplot as plt
 import numpy as np
-from bast.crystal import Crystal
 from tqdm import tqdm
 from bast.misc import coords
-from bast.tools import rotation_matrix as rot
 from bast.alternative import redheffer_product
 
 from multiprocessing import Pool
@@ -26,8 +23,10 @@ os.environ['BAST_MT_ON'] = '0'
 
 """
     Parameters
+    From 'A three-dimentional photonic crystal operating at infrared wavelengths
+    SY. Lin and JG. Fleming. Letters to Nature 1998
 """
-N = 256
+N = 512
 pwx = 3
 
 polarization = (1, 1)  # norm
@@ -76,45 +75,19 @@ def solve_rt(frequency, angle_deg, kp=None):
 
 
 
+from bast.factory import make_woodpile
 def worker_notwist(config):
     frequency, kp = config
-    return solve_rt_notwist(frequency, kp=kp)
-
-def solve_rt_notwist(frequency, kp=(0,0)):
-    '''
-        The wood pile structure without any twist.
-        There are four layers in the z direction. 
-        These could repeat to form a bigger crystal.
-    ''' 
-    pw = (pwx, pwx)
-    pattern = Drawing((N, N), 1)
-    pattern.rectangle((0, 0), (rods_w, 1), rods_eps)
-    
-    
-    pattern2 = Drawing((N, N), 1)
-    pattern2.rectangle(( rods_shift, 0), (rods_w, 1), rods_eps)
-    pattern2.rectangle((-rods_shift, 0), (rods_w, 1), rods_eps)
-
-    cl = Crystal(pw)
-    cl.add_layer_pixmap("1", pattern.canvas(),    rods_height)
-    cl.add_layer_pixmap("2", pattern.canvas().T,  rods_height)
-    cl.add_layer_pixmap("3", pattern2.canvas(),   rods_height)
-    cl.add_layer_pixmap("4", pattern2.canvas().T, rods_height)
-
-    """
-        Define the device and solve.
-    """
-    device = ['1','2','3','4']
-    cl.set_device(device, [False] * len(device))
-    cl.set_source(1 / frequency, polarization[0], polarization[1], 0, 0, kp=kp)
+    wl = 1 / frequency
+    cl = make_woodpile(rods_w, rods_eps, rods_shift, rods_height, (pwx, pwx))
+    cl.set_source(wl, polarization[0], polarization[1], 0, 0, kp=kp)
     cl.solve()
     cl.Stot = redheffer_product(cl.Stot, cl.Stot)
-    cl.Stot = redheffer_product(cl.Stot, cl.Stot)
+    #cl.Stot = redheffer_product(cl.Stot, cl.Stot)
 
     return cl.poynting_flux_end()
 
 if __name__ == '__main__':
-
     NF = 203
     NA = 90
     if sys.argv[1] == "ct":
@@ -141,19 +114,22 @@ if __name__ == '__main__':
             RT.append(solve_rt(f, angle, kp=kp))
         np.savez_compressed("woodpile_twisted_bd2.npz", RT=RT, F=frequencies, A=kpath)
     elif sys.argv[1] == "c":
-        frequencies = np.linspace(0.4, 0.65, NF)
+        a = 1.414
+        freqs = np.linspace(0.35/a, 0.65/a, NF)
+        kp = (0, 0)
         RT = list()
-        for i, f in enumerate(tqdm(frequencies)):
-            RT.append(solve_rt_notwist(f))
-        np.savez_compressed("woodpile2.npz", RT=RT, F=frequencies)
+        for i, f in enumerate(tqdm(freqs)):
+            RT.append(worker_notwist((f,kp)))
+        np.savez_compressed("woodpile2.npz", RT=RT, F=a*freqs)
     elif sys.argv[1] == "cbd":
-        frequencies = np.linspace(0.4, 0.7, NF)
+        a = 1.414
+        frequencies = np.linspace(0.4/a, 0.65/a, NF)
         from itertools import product
         M = 91
         kpath = [ (kx, 0) for kx in np.linspace(0, 0.99*np.pi, M) ]
     
         RT = list()
-        with Pool(6) as p:
+        with Pool(8) as p:
             configs = list(product(frequencies, kpath))
             #for i, (f, kp) in enumerate(tqdm():
             RT = p.map(worker_notwist, configs)
@@ -162,7 +138,7 @@ if __name__ == '__main__':
         data = np.load(sys.argv[2])
         print(list(data.keys()))
         RT = data["RT"]
-        frequencies = data["F"]
+        frequencies = data["F"] * 1.414
         angles = data["A"]
         NF = len(frequencies)
         NA = len(angles)
@@ -180,15 +156,17 @@ if __name__ == '__main__':
         plt.legend()
         fig.savefig("figs/Woodpile_R.png")
     elif sys.argv[1] == "p":
+        tidy3D = np.loadtxt("test_woodpile.csv", skiprows=7, delimiter=",")
         data = np.load(sys.argv[2])
         RT = data["RT"]
-        frequencies = data["F"]
-        NF = len(frequencies)
+        wls = data["F"]
+        NF = len(wls)
         R = np.reshape(RT, (NF, 2))[..., 0]
         T = np.reshape(RT, (NF, 2))[..., 1]
         fig, ax2 = plt.subplots()
-        ax2.plot(frequencies, T[:], color="r", label="Transmission")
-        ax2.plot(frequencies, R[:], color="b", label="Reflexion")
+        ax2.plot(wls, T[:], color="r", label="Bast", marker='o')
+        #ax2.plot(tidy3D[:,0], tidy3D[:,1], color="b", label="Tidy3D", marker='o')
+        #ax2.plot(1/frequencies, R[:], color="b", label="Reflexion")
         ax2.set_title("Untwisted Woodpile")
         ax2.set_ylabel("Frequency [c/a]")
         plt.legend()

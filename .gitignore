@@ -7,7 +7,7 @@ __pycache__/
 build/
 *.png
 *.csv
-*.png
+#*.png
 *.sh
 *.npz
 *.pkl
