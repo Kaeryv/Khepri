@@ -7,3 +7,12 @@ else:
 from .layer import Layer
 from .crystal import Crystal
 from .expansion import Expansion
+
+import pickle
+def load(path):
+    with open(path, "rb") as f:
+        return pickle.load(f)
+    
+def save(path, obj):
+    with open(path, "wb") as f:
+        return pickle.dump(obj, f)

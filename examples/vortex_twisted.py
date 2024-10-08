@@ -16,11 +16,10 @@ from bast.tools import rotation_matrix as rot
 from bast.tools import reciproc
 
 # Worse as angle increases
-twist_angle=20
+twist_angle=np.deg2rad(20)
 
 
-def moire_lattice(angle_deg):
-    angle = np.deg2rad(angle_deg)
+def moire_lattice(angle):
     R = rot(np.pi/2)
     R1 = rot(angle/2)
     R2 = rot(-angle/2)
@@ -72,7 +71,7 @@ source_real = np.swapaxes(source_real, 0, 2)
 source_real = np.swapaxes(source_real, 1, 3)
 
 pattern = Drawing((128,128), 8)
-pattern.circle((0,0), 0.4, 1)
+pattern.disc((0,0), 0.4, 1)
 pwx = int(sys.argv[2])
 pw = (pwx, pwx)
 def get_crystals(kbz, twisted=False):

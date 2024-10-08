@@ -1,9 +1,12 @@
-# Bast
+# Khepri: Kode for High-Efficiency Propagation of Radiant Interactions
+
+![](khepri-light.png#gh-light-mode-onlyL)
+
 
 ## Installation
 
 ```bash
-pip install 'bast @ git+https://github.com/Kaeryv/Bast'
+pip install 'bast @ git+https://github.com/Kaeryv/Khepri'
 ```
 
 ![Discord](https://img.shields.io/discord/1228737702149623809?style=flat-square)
@@ -13,6 +16,9 @@ RCWA Implementation fully in python!
 - Two implementations are available
 - Easy-to-use script with json input files available in exebutable module `bast.ez`
 
+## Brillouin zone integration of fields
+
+![](examples/figures/bzi_grating.gif)
 
 ## Extended RCWA
 
@@ -32,7 +38,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 d = Drawing((128,)*2, 12, None)
-d.circle((0.0, 0.0), 0.4, 1.0)
+d.disc((0.0, 0.0), 0.4, 1.0)
 
 cl = Crystal((5,5))
 cl.add_layer_uniform("S1", 1, 1.1)

@@ -25,7 +25,7 @@ def main(pp, zres, progress=True):
     radius = 0.4
     epsh = 12
     d = Drawing((N, N), epsh, cl.lattice)
-    d.circle((0.0, 0.0), radius, 1)
+    d.disc((0.0, 0.0), radius, 1)
     #fig, (ax1, ax2) = plt.subplots(2)
     #gx, gy = cl.expansion.g_vectors
     #ff = transform_disc(0., 0., radius, gx, gy, 1).reshape(pp,pp).T * epsh

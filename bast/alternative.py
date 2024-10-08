@@ -82,8 +82,7 @@ def scattering_transmission(KX, KY, W0, V0, er, ur=1):
     Kz = np.conj(csqrt(arg))
     eigenvals = np.hstack((1j*Kz, 1j*Kz))
     Wtrans = np.identity(2*N)
-    #eigenvals = csqrt(eigenvals)
-    #inv_lambda = np.diag(np.reciprocal(eigenvals))
+
     Vtrans = Qref / eigenvals
     A = solve(W0, Wtrans) + solve(V0, Vtrans)
     B = solve(W0, Wtrans) - solve(V0, Vtrans)
@@ -102,20 +101,13 @@ def free_space_eigenmodes(KX, KY):
     Q = P
     W = np.identity(2*N)
     arg = (I-KX**2-KY**2).astype('complex')
-    arg = np.diag(arg)
-    Kz = np.conj(csqrt(arg));
-    eigenvalues = np.hstack((1j*Kz, 1j*Kz))
-    #mask = np.logical_or(eigenvalues.imag < 0.0, np.logical_and(np.isclose(eigenvalues.imag, 0.0), eigenvalues.real < 0.0))
-    #np.negative(eigenvalues, where=mask, out=eigenvalues)
+    kz = np.diag(arg).copy()
+    mask = kz.real < 0
+    kz[mask] = -1j * np.sqrt(-kz[mask])
+    kz[~mask] = np.sqrt(kz[~mask])
+    eigenvalues = np.hstack((1j*kz, 1j*kz))
     V = Q / eigenvalues; 
     return W, V
-
-def kz_from_kplanar(kx, ky, k0, epsilon):
-    arg = k0**2*epsilon-kx**2-ky**2
-    kz = np.conj(np.sqrt(arg.astype("complex")))
-    #mask = np.logical_or(kz.imag < 0.0, np.logical_and(np.isclose(kz.imag, 0.0), kz.real < 0.0))
-    #np.negative(kz, where=mask, out=kz)
-    return kz
 
 def incident(pw, p_pol, s_pol, k_vector):
     logging.debug(f"Building vector with plane wave {pw=}, {p_pol=}, {s_pol=}, {k_vector=}")
@@ -251,11 +243,11 @@ def scattering_identity(pw, block=False):
 
 def poynting_fluxes(expansion, c_output, kp, wavelength, only_total=True, epsi=1, epse=1):
     k0 = 2 * np.pi / wavelength
-    kzi = np.conj(csqrt(k0**2*epsi-kp[0]**2-kp[1]**2))
+    kzi = np.conj(csqrt(k0**2*epsi-kp[0]**2-kp[1]**2)) / k0
     sx, sy = np.split(c_output, 2)
     kx, ky, kz = expansion.k_vectors(kp, wavelength, epse)
     sz = - (kx * sx + ky * sy) / kz
-    t = k0 * kz.real / kzi * (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
+    t = kz.real / kzi * (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
     if only_total:
         return np.sum(t)
     else:

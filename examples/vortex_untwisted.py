@@ -52,7 +52,7 @@ pw = (3,3)
 canvas_size = (512,512)
 
 pattern = Drawing(canvas_size, 12)
-pattern.circle((0,0), 0.4, 1)
+pattern.disc((0,0), 0.4, 1)
 
 e1 = Expansion(pw)
 crystals = list()

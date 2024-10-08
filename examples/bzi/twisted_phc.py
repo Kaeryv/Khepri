@@ -29,16 +29,14 @@ w0=3
 offsetx = 30
 offsety = 30
 
-# Worse as angle increases
-twist_angle=float(sys.argv[4])
+twist_angle=np.deg2rad(float(sys.argv[3]))
 
 
 def size(angle_deg):
     angle = np.deg2rad(angle_deg)
     return float(sys.argv[5])/((1/np.cos(angle))-1)
 
-def moire_lattice(angle_deg):
-    angle = np.deg2rad(angle_deg)
+def moire_lattice(angle):
     AM = rot(angle/2)@ np.eye(2)
     AM *= size(angle_deg)
     return AM
@@ -87,7 +85,7 @@ from bast.alternative import incident
 
 fields = list()
 pattern = Drawing((128,128), 4)
-pattern.circle((0,0), 0.25, 1)
+pattern.disc((0,0), 0.25, 1)
 
 
 '''

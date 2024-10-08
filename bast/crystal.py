@@ -305,7 +305,17 @@ class Crystal:
 
         return np.split(np.asarray(fields), 2, axis=0)
 
-    def fields_coords_xy(self, x, y, z, incident_fields, use_lu=False, kp=None):
+    def get_source_as_field_vectors(self):
+        efield = incident(
+            self.pw,
+            self.source.te,
+            self.source.tm,
+            k_vector=(self.kp[0], self.kp[1], self.kzi),
+        )
+        hfield = np.zeros_like(efield)
+        return efield, hfield
+
+    def fields_coords_xy(self, x, y, z, incident_fields=None, use_lu=False, kp=None, return_fourier=False):
         """Returns the fields at specified coordinates (x,y) for a depth z.
 
         Args:
@@ -320,6 +330,10 @@ class Crystal:
         assert x.shape == y.shape
         if kp is None:
             kp = self.kp
+        if incident_fields is None:
+            incident_fields = np.hstack(self.get_source_as_field_vectors())
+        elif isinstance(incident_fields, tuple) and len(incident_fields) == 2:
+            incident_fields = np.hstack(incident_fields)
         e = self.expansion
         Kx, Ky, _ = e.k_vectors(kp, self.source.wavelength)
 
@@ -328,32 +342,29 @@ class Crystal:
         else:
             ffields = self._fourier_fields(z, incident_fields, use_lu=use_lu)
         k0 = 2 * np.pi / self.source.wavelength
-
+        
+        if return_fourier:
+            return ffields
+        
         fields = [fourier2real_xy(s, k0 * Kx, k0 * Ky, x, y) for s in ffields]
 
         return np.split(np.asarray(fields), 2, axis=0)
 
     def fields_volume(self, x, y, z, incident_fields=None, use_lu=False):
         if incident_fields is None:
-            efield = incident(
-                self.pw,
-                self.source.te,
-                self.source.tm,
-                k_vector=(self.kp[0], self.kp[1], self.kzi),
-            )
-            hfield = np.zeros_like(efield)
+            incident_fields = self.get_source_as_field_vectors()
+        
         fields = []
         for zi in z:
             fields.append(
                 self.fields_coords_xy(
-                    x, y, zi, np.hstack((efield, hfield)), use_lu=use_lu
+                    x, y, zi, np.hstack(incident_fields), use_lu=use_lu
                 )
             )
         fields = np.asarray(fields)
         return fields[:, 0, ...], fields[:, 1, ...]
 
     def set_source(self, wavelength, te=1.0, tm=1.0, theta=0.0, phi=0.0, kp=None):
-        eps_inc = 1.0
         if kp is not None:
             self.kp = kxi, kyi = kp
             self.source = SimpleNamespace(
@@ -364,11 +375,11 @@ class Crystal:
                 te=te, tm=tm, theta=theta, phi=phi, wavelength=wavelength
             )
             self.kp = kxi, kyi = compute_kplanar(
-                eps_inc, wavelength, self.source.theta, self.source.phi
+                self.epsi, wavelength, self.source.theta, self.source.phi
             )
 
         self.k0 = 2 * np.pi / wavelength
-        self.kzi = np.conj(csqrt(self.k0**2 * eps_inc - kxi**2 - kyi**2))
+        self.kzi = np.conj(csqrt(self.k0**2 * self.epsi - kxi**2 - kyi**2))
 
     def poynting_flux_end(self, only_total=True):
         incident_fields = incident(

@@ -24,12 +24,6 @@ from glob import glob
 from itertools import product
 
 '''
-    Define the pattern (common to both layers)
-'''
-#pattern = Drawing((256,256), 4)
-#pattern.circle((0,0), 0.25, 1)
-
-'''
     Define the crystal layers. 
     Be careful that layers with different twist angles are different objects.
 '''
@@ -69,7 +63,6 @@ def solve_crystal(wl, twist_angle, polar=(1,1), theta=0, phi=0, pw=(3,3), fields
         return twcl.poynting_flux_end()
     else:
         return twcl
-
 
 if __name__ == '__main__':
     if sys.argv[1] == "RT":

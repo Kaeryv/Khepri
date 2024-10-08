@@ -10,28 +10,35 @@ import numpy as np
 from numpy.fft import fft2, fftshift, ifftshift,ifft2
 from scipy.interpolate import RegularGridInterpolator
 from copy import copy
+from collections import namedtuple
+
+Axis = namedtuple('Axis', ['X', 'Y'])(X=[1, 0], Y=[0,1])
 
 def uniform(shape, epsilon=1):
     return np.ones(shape)*epsilon
 
 class Drawing:
-    def __init__(self, shape, epsilon, lattice=None) -> None:
+    def __init__(self, shape, epsilon_background, lattice=None) -> None:
+        self.geometric_description = list()
+
         if lattice is None:
-            lattice = np.array([[1,0],[0,1]])
-        self._canvas = uniform(shape, epsilon=epsilon)
-        self.x0, self.y0, self.x1, self.y1 = -0.5, -0.5, 0.5, 0.5
+            self.lattice = lattice = np.array([Axis.X, Axis.Y])
+        self.lattice = lattice
+
+        self.background = epsilon_background
+        self._canvas = uniform(shape, epsilon=epsilon_background)
         self.xbar = np.linspace(-0.5, 0.5, shape[0])
         self.ybar = np.linspace(-0.5, 0.5, shape[1])
-        #self.xaxis = np.linspace(self.x0, self.x1, shape[0], endpoint=True)
-        #self.yaxis = np.linspace(self.y0, self.y1, shape[1], endpoint=True)
+
         self.nX, self.nY = np.meshgrid(self.xbar, self.ybar, indexing="ij")
         self.X = lattice[0, 0] * self.nX + lattice[1, 0] * self.nY
         self.Y = lattice[0, 1] * self.nX + lattice[1, 1] * self.nY
+        self.x0, self.y0, self.x1, self.y1 = np.min(self.X), np.min(self.Y), np.max(self.X), np.max(self.Y)
+        self.x = np.linspace(self.x0, self.x1, shape[0])
+        self.y = np.linspace(self.y0, self.y1, shape[1])
 
-        self.geometric_description = list()
-        self.background = epsilon
     
-    def circle(self, xy, radius, epsilon):
+    def disc(self, xy, radius, epsilon):
         x, y = xy
         self._canvas[np.sqrt((self.X-x)**2+(self.Y-y)**2) < radius] = epsilon
         self.geometric_description.append({"type": "disc", "params": [0.5+xy[0], 0.5+xy[1], radius], "epsilon": epsilon})
@@ -59,15 +66,36 @@ class Drawing:
         self._canvas[dsqr < 1.0 / irsqr] = epsilon
         self.geometric_description.append({"type": "ellipse", "params": (x,y,a,b,r_rad), "epsilon": epsilon})
 
+    def parallelogram(self, xy, bh, tilt_rad, epsilon):
+        '''
+        Parallelogram with basis parallel to x axis.
+        '''
+        x, y = xy
+        b, h = bh
+        y = y -  h / 2
+        tantilt = np.tan(tilt_rad)
+        
+        for i in range(self._canvas.shape[1]):
+            if np.all(self.Y[:, i] <= y):
+                continue
+            elif np.all(self.Y[:, i] - y >= h):
+                break
+            else:
+                start = x -b /2 + tantilt * self.Y[0, i] #(self.Y[0, i]) / b_over_h + x
+                end = start + b
+                self._canvas[(self.X[:, i] >start) & (self.X[:, i] <= end), i] = epsilon
+
+
+
     def canvas(self, shape=None, interp_method="linear"):
         if shape is None:
             return self._canvas.copy()
         else:
             XY = np.vstack((self.X.flat,self.Y.flat))
-            interp = RegularGridInterpolator((self.xbar, self.ybar), self._canvas, method=interp_method)
-            xi = np.linspace(self.x0, self.x1, shape[0], endpoint=True)
-            yi = np.linspace(self.y0, self.y1, shape[1], endpoint=True)
-            X, Y = np.meshgrid(xi, yi)
+            interp = RegularGridInterpolator((self.x, self.y), self._canvas, method=interp_method)
+            xi = np.linspace(self.x0, self.x1, shape[0])
+            yi = np.linspace(self.y0, self.y1, shape[1])
+            X, Y = np.meshgrid(xi, yi, indexing="ij")
             XY = np.vstack((X.flat, Y.flat)).T
             return interp(XY).reshape(shape)
 
@@ -92,10 +120,11 @@ class Drawing:
         ax.axis("equal")
         plt.colorbar(handle)
 
-        if filename is None:
-            plt.show()
-        else:
+        if filename is not None:
             plt.savefig(filename)
+
+        if filename is None and ax is None:
+            plt.show()
 
 
         return handle

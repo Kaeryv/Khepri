@@ -46,4 +46,4 @@ class Tidy3DTests(unittest.TestCase):
         ax2.set_title("Testing for {NF} points with {pw=}")
         ax2.set_ylabel("Frequency [c/a]")
         plt.legend()
-        fig.savefig("figs/test_tidy3D_square.png")
+        fig.savefig("test/figures/test_tidy3D_square.png")

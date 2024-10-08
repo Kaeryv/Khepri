@@ -18,7 +18,7 @@ pw = (3, 3)
 N = 256
 canvas_size = (N,N)
 pattern = Drawing(canvas_size, 4)
-pattern.circle((0,0), 0.25, 1.0)
+pattern.disc((0,0), 0.25, 1.0)
 #pattern.rectangle((0,0), (1, 0.25), 1.0)
 
 
@@ -51,15 +51,15 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 
 
-def solve(freq, angle_deg):
+def solve(freq, angle):
     # Upper untwisted layer
     e1 = Expansion(pw)
     layer_up = Layer.pixmap(e1, pattern.canvas(), 0.2)
     layer_air = Layer.uniform(e1, 1.0, 0.3)
 
-    # Lower twisted layer at angle_deg
+    # Lower twisted layer at angle
     e2 = Expansion(pw)
-    e2.rotate(angle_deg)
+    e2.rotate(angle)
     layer_down = Layer.pixmap(e2, pattern.canvas(), 0.2)
     
     # Extended basis and Smats
@@ -76,10 +76,10 @@ def solve(freq, angle_deg):
     
     return etw, Stot, (l1, li, l2, Sls, Srs)
 
-def solve_rt(freq, angle_deg):
+def solve_rt(freq, angle):
     k0 = 2*np.pi*freq
     
-    etw, Stot, _ = solve(freq, angle_deg)
+    etw, Stot, _ = solve(freq, angle)
 
     # Let's propagate a plane wave and get RT
     esrc = incident(etw.pw, 1, 1j, k_vector=(0, 0, k0))
@@ -92,7 +92,7 @@ from bast.fields import fourier_fields_from_mode_amplitudes
 from bast.alternative import free_space_eigenmodes, scattering_identity
 from math import prod
 
-def solve_fields(freq, angle_deg, x, y, z, solveresults, lu=None):
+def solve_fields(freq, angle, x, y, z, solveresults, lu=None):
     k0 = 2 * np.pi * freq
     etw, Stot, (l1, li, l2, Sls, Srs) = solveresults
 
@@ -179,7 +179,7 @@ elif action == "plotmap":
     fig.savefig("debug.png")
 elif action == "fields":
     assert(len(sys.argv)> 3)
-    twist_angle = float(sys.argv[2])
+    twist_angle = np.deg2rad(float(sys.argv[2]))
     frequency = float(sys.argv[3])
 
     x = np.linspace(0, 1.0, 64)

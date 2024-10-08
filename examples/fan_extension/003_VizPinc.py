@@ -6,7 +6,7 @@ pw = (3,3)
 a = 2 * np.pi
 l1 = CartesianLattice(pw, (a, 0), (0, a))
 l2 = CartesianLattice(pw, (a, 0), (0, a))
-l2.rotate(34)
+l2.rotate(np.deg2rad(34))
 l = l1 + l2
 
 pin = incident(l.pw, 1.0/np.sqrt(2), p_pol=1j, s_pol=1)

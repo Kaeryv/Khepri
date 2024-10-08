@@ -187,27 +187,27 @@ class CartesianLattice:
         for i in range(len(g)):
             yield g[i]
 
-    def rotate(self, angle_deg: Degrees):
-        """ Rotate the lattice by angle_deg degrees. """
-        angle = np.deg2rad(angle_deg)
-        G_orig = np.array(list(self.G_vectors()))
-        R = rotation_matrix(angle)
-        G_rotated = R @ G_orig.T
-        self.Gx = G_rotated[0].reshape(self.Gx.shape)
-        self.Gy = G_rotated[1].reshape(self.Gy.shape)
+    # def rotate(self, angle_deg: Degrees):
+    #     """ Rotate the lattice by angle_deg degrees. """
+    #     angle = np.deg2rad(angle_deg)
+    #     G_orig = np.array(list(self.G_vectors()))
+    #     R = rotation_matrix(angle)
+    #     G_rotated = R @ G_orig.T
+    #     self.Gx = G_rotated[0].reshape(self.Gx.shape)
+    #     self.Gy = G_rotated[1].reshape(self.Gy.shape)
 
-    def __add__(self, rhs):
-        pw = self.gx.shape
-        g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=complex_dtype[self.dtype])
+    # def __add__(self, rhs):
+    #     pw = self.gx.shape
+    #     g = np.zeros((pw[0]**2, pw[1]**2, 2), dtype=complex_dtype[self.dtype])
         
-        g2 = np.array(list(rhs.g_vectors()))
-        for i, g1 in enumerate(self.g_vectors()):
-            g[i, :, :] = g1.reshape(1, 2) + g2
+    #     g2 = np.array(list(rhs.g_vectors()))
+    #     for i, g1 in enumerate(self.g_vectors()):
+    #         g[i, :, :] = g1.reshape(1, 2) + g2
         
-        l = CartesianLattice((self.pw[0]**2, self.pw[1]**2), self.a1, self.a2, 1.0, 1.0, dtype=self.dtype)
-        l.gx = g[:, :, 0]
-        l.gy = g[:, :, 1]
-        return l
+    #     l = CartesianLattice((self.pw[0]**2, self.pw[1]**2), self.a1, self.a2, 1.0, 1.0, dtype=self.dtype)
+    #     l.gx = g[:, :, 0]
+    #     l.gy = g[:, :, 1]
+    #     return l
 
     def restrict_radius_mask(self, radius):
         Gs = np.array(list(self.g_vectors()))
