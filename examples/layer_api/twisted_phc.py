@@ -3,12 +3,12 @@ sys.path.append(".")
 assert(len(sys.argv) > 1)
 action = sys.argv[1]
 
-from bast.tools import _joint_subspace, joint_subspace
-from bast.draw import Drawing
+from khepri.tools import _joint_subspace, joint_subspace
+from khepri.draw import Drawing
 import numpy as np
-from bast.layer import Layer
-from bast.expansion import Expansion
-from bast.alternative import redheffer_product, incident, poynting_fluxes
+from khepri.layer import Layer
+from khepri.expansion import Expansion
+from khepri.alternative import redheffer_product, incident, poynting_fluxes
 import logging
 from tqdm import tqdm
 
@@ -87,9 +87,9 @@ def solve_rt(freq, angle):
     S21, S11 = Stot[1,0], Stot[0,0]
     return poynting_fluxes(etw, S11 @ esrc, (0,0), 1/freq), poynting_fluxes(etw, S21 @ esrc, (0,0), 1/freq)
 
-from bast.fields import layer_eigenbasis_matrix, translate_mode_amplitudes2, fourier2real_xy
-from bast.fields import fourier_fields_from_mode_amplitudes
-from bast.alternative import free_space_eigenmodes, scattering_identity
+from khepri.fields import layer_eigenbasis_matrix, translate_mode_amplitudes2, fourier2real_xy
+from khepri.fields import fourier_fields_from_mode_amplitudes
+from khepri.alternative import free_space_eigenmodes, scattering_identity
 from math import prod
 
 def solve_fields(freq, angle, x, y, z, solveresults, lu=None):
@@ -154,7 +154,7 @@ if action == "spectrum":
     plt.savefig("debug.png")
 
 elif action == "map":
-    from bast.misc import str2linspace_args
+    from khepri.misc import str2linspace_args
     from itertools import product
     assert(len(sys.argv)> 3)
     angles = np.linspace(*str2linspace_args(sys.argv[2]))

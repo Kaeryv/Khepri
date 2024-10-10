@@ -3,9 +3,9 @@ sys.path.append(".")
 
 import matplotlib.pyplot as plt
 import numpy as np
-from bast.alternative import incident, scattering_structured_layer, scattering_uniform_layer, redheffer_product, free_space_eigenmodes
-from bast.expansion import Expansion
-from bast.tools import c
+from khepri.alternative import incident, scattering_structured_layer, scattering_uniform_layer, redheffer_product, free_space_eigenmodes
+from khepri.expansion import Expansion
+from khepri.tools import c
 from math import pi
 from cmath import sqrt as csqrt
 from numpy.linalg import inv

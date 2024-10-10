@@ -1,8 +1,8 @@
 import sys
 sys.path.append(".")
-from bast.expansion import Expansion
-from bast.layer import Layer
-from bast.crystal import Crystal
+from khepri.expansion import Expansion
+from khepri.layer import Layer
+from khepri.crystal import Crystal
 import numpy as np
 pw = (5,5)
 e = Expansion(pw)

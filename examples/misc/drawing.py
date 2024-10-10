@@ -1,6 +1,6 @@
 import sys
 sys.path.append(".")
-from bast.draw import Drawing
+from khepri.draw import Drawing
 import matplotlib.pyplot as plt
 
 canvas_size = 64, 64

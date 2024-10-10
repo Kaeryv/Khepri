@@ -1,20 +1,20 @@
 import sys
 sys.path.append(".")
 import numpy as np
-from bast.crystal import Crystal
+from khepri.crystal import Crystal
 import matplotlib.pyplot as plt
-from bast.draw import Drawing
-from bast.layer import Layer
-from bast.expansion import Expansion
-from bast.extension import ExtendedLayer as EL
-from bast.beams import _paraxial_gaussian_field_fn, shifted_rotated_fields, _paraxial_laguerre_gaussian_field_fn
-from bast.tools import compute_kplanar
+from khepri.draw import Drawing
+from khepri.layer import Layer
+from khepri.expansion import Expansion
+from khepri.extension import ExtendedLayer as EL
+from khepri.beams import _paraxial_gaussian_field_fn, shifted_rotated_fields, _paraxial_laguerre_gaussian_field_fn
+from khepri.tools import compute_kplanar
 import sys
 from tqdm import tqdm
-from bast.beams import gen_bzi_grid
-from bast.tools import rotation_matrix as rot
-from bast.tools import reciproc
-from bast.misc import coords
+from khepri.beams import gen_bzi_grid
+from khepri.tools import rotation_matrix as rot
+from khepri.tools import reciproc
+from khepri.misc import coords
 import psutil
 import os
 
@@ -80,8 +80,8 @@ theta = 0
 '''
     Build and solve the crystal
 '''
-from bast.beams import amplitudes_from_fields
-from bast.alternative import incident
+from khepri.beams import amplitudes_from_fields
+from khepri.alternative import incident
 
 fields = list()
 pattern = Drawing((128,128), 4)

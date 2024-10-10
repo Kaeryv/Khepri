@@ -8,9 +8,9 @@ import sys
 sys.path.append(".")
 
 import numpy as np
-from bast.tmat.lattice import CartesianLattice
-from bast.tools import c, compute_fluxes, incident
-from bast.tmat.scattering import scattering_matrix
+from khepri.tmat.lattice import CartesianLattice
+from khepri.tools import c, compute_fluxes, incident
+from khepri.tmat.scattering import scattering_matrix
 from tqdm import tqdm
 # The lattice has air/void incidence and an air subtrate, the lattice is square.
 l = CartesianLattice(plane_waves, (a, 0), (0, a), 1.0, 1.0)

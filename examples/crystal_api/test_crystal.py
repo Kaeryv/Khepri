@@ -1,10 +1,10 @@
 import sys
 sys.path.append(".")
 
-from bast.crystal import Crystal
-from bast.draw import Drawing
-from bast.constants import c
-from bast.misc import coords, quiver, poynting_vector
+from khepri.crystal import Crystal
+from khepri.draw import Drawing
+from khepri.constants import c
+from khepri.misc import coords, quiver, poynting_vector
 
 import numpy as np
 import matplotlib.pyplot as plt

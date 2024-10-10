@@ -4,7 +4,7 @@ sys.path.append(".")
 import matplotlib.pyplot as plt
 import numpy as np
 
-import bast as bt
+import khepri as bt
 N=256
 pw = (7,1)
 cl = bt.Crystal(pw, epsi=8, epse=8)

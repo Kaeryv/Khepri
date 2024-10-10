@@ -10,19 +10,19 @@ os.environ['NUMEXPR_NUM_THREADS'] = '1'
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['BAST_MT_ON'] = '0'
 
-from bast.crystal import Crystal
-from bast.draw import Drawing
-from bast.constants import c
-from bast.misc import coords
+from khepri.crystal import Crystal
+from khepri.draw import Drawing
+from khepri.constants import c
+from khepri.misc import coords
 
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from itertools import product
-from bast.beams import gen_bzi_grid
-from bast.beams import shifted_rotated_fields, _paraxial_gaussian_field_fn
-from bast.beams import amplitudes_from_fields
+from khepri.beams import gen_bzi_grid
+from khepri.beams import shifted_rotated_fields, _paraxial_gaussian_field_fn
+from khepri.beams import amplitudes_from_fields
 
 import logging
 # If you want more info

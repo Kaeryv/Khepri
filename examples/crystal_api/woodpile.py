@@ -2,15 +2,15 @@ import sys
 
 sys.path.append(".")
 
-from bast.crystal import Crystal
-from bast.draw import Drawing
-from bast.expansion import Expansion
-from bast.layer import Layer
+from khepri.crystal import Crystal
+from khepri.draw import Drawing
+from khepri.expansion import Expansion
+from khepri.layer import Layer
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-from bast.misc import coords
-from bast.alternative import redheffer_product
+from khepri.misc import coords
+from khepri.alternative import redheffer_product
 
 from multiprocessing import Pool
 
@@ -75,7 +75,7 @@ def solve_rt(frequency, angle, kp=None):
 
 
 
-from bast.factory import make_woodpile
+from khepri.factory import make_woodpile
 def worker_notwist(config):
     frequency, kp = config
     wl = 1 / frequency

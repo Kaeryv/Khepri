@@ -1,13 +1,13 @@
 import sys
 
 sys.path.append(".")
-from bast.crystal import Crystal
-from bast.draw import Drawing
+from khepri.crystal import Crystal
+from khepri.draw import Drawing
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from bast.constants import c
-from bast.fourier import transform_disc
+from khepri.constants import c
+from khepri.fourier import transform_disc
 import logging
 
 # logging.getLogger().setLevel(logging.DEBUG)
@@ -68,7 +68,7 @@ def main(pp, zres, progress=True):
         # plt.plot(d[:, 0] * 1e12 / c * 1e-6, d[:, 1])
         fig.savefig("spectre.png")
 
-    from bast.misc import coords
+    from khepri.misc import coords
 
     if False:
         wl = 1 / 0.4  # 1.428
