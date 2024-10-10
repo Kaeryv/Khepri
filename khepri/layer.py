@@ -72,9 +72,36 @@ class Layer:
         self.S = None
 
         self.fields = False
+    
+    @classmethod
+    def pixmap_or_uniform(cls, expansion, pixmap, depth):
+        """
+            This method is a convenience when you don't know what is inside pixmap.
+            If the structure is rigorously uniform, it will be redirected to uniform solver.
+            You better filter too small details before sending pixmap to this function.
+            The expected use case is when doing optimization.
+            Args:
+                expansion (Expansion): The expansion to be used for this layer.
+                pixmap (array): A numpy picture of you 2D pattern. Can be uniform.
+                depth (float): The depth of the layer.
+        """
+        eps0 = pixmap.flatten()[0]
+        if np.all(pixmap == eps0):
+            return Layer.uniform(expansion, eps0, depth)
+        else:
+            return Layer.pixmap(expansion, pixmap, depth)
+
 
     @classmethod
     def pixmap(cls, expansion, pixmap, depth):
+        """
+            Constructing a layer this way will use the FFT algorithm to source the convolution matrix.
+            The FFT will be applied on the real-space descritpion of the unit cell dielectric 'pixmap'.
+            Args:
+                expansion (Expansion): The expansion to be used for this layer.
+                pixmap (array): A numpy picture of you 2D pattern.
+                depth (float): The depth of the layer.
+        """
         layer = cls()
         layer.expansion = expansion
         layer.formulation = Formulation.FFT

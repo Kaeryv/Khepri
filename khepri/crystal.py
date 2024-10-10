@@ -33,9 +33,24 @@ from numpy.linalg import solve
 
 
 class Crystal:
+    """This class has the goal to provide a simple interface for
+    an end-user of the simulation code. For advanced usage, consider using the
+    `Layer` API. Still, this class provides extensive functionality including:
+    - Fields computation
+    - Relfection / Transmission (total or split in diffraction orders)
+    - Twisted PhCs management
+    """
     def __init__(
         self, pw, lattice="square", lattice_pitch=1, void=False, epsi=1, epse=1
     ) -> None:
+        """Creates a Crystal with a set number of plane waves in the expansion.
+        Args:
+            pw (tuple): The number of plane waves along x and y in the expansion.
+            lattice (str or array): "square", "hexa" or explicit lattice vectors.
+            lattice_pitch (str or array): when using "square" or "hexa" lattices.
+            epsi (float): incidence medium epsilon
+            epse (float): emergence medium epsilon
+        """
         self.pw = pw
         self.a = lattice_pitch
         self.void = void
@@ -65,15 +80,24 @@ class Crystal:
         self.stack_positions = []
 
     @classmethod
-    def from_expansion(cls, expansion, a=1, epsi=1, epse=1, void=False, lattice='square'):
-        obj = cls(expansion.pw, epse=epse, epsi=epsi, void=void, lattice=lattice)
+    def from_expansion(cls, expansion, **kwargs):
+        """Builds a Crystal from an existing expansion.
+        Mostly useful for twisted expansion.
+        Args:
+            expansion (Expansion): The (twisted expansion)
+            **kwargs: Passed to Crystal __init__
+        Returns:
+            The crystal with the specified expansion
+        """
+        obj = cls(expansion.pw, **kwargs)
         obj.expansion = expansion
         return obj
 
     def add_layer_uniform(self, name, epsilon, depth):
         """
         Add layer without planar structuration. It will be processed analytically
-        without solving any eigenvalue problem
+        without solving any eigenvalue problem. This is equivalent to a call to
+        the more generic `add_layer` with a Layer object instancianted using `Layer.uniform`.
         """
         self.layers[name] = Layer.uniform(self.expansion, epsilon, depth)
 
@@ -85,7 +109,7 @@ class Crystal:
 
     def add_layer_analytical(self, name, epsilon, epsilon_host, depth):
         """
-        Add a layer from 2D ndarray that provides eps(x,y). This method will use FFT.
+        Add a layer from 2D ndarray that provides eps(x,y). This method will use analytical formulas.
         """
         self.layers[name] = Layer.analytical(self.expansion, epsilon, epsilon_host, depth)
 
@@ -229,6 +253,7 @@ class Crystal:
         sz, uz = longitudinal_fields((sx, sy, ux, uy), Kx, Ky, layer.IC)
 
         return sx, sy, sz, ux, uy, uz
+    
     def _fourier_fields(self, z, incident_fields, use_lu=False):
         """Returns the fourier fields in the unit cell for a depth z.
 
@@ -306,6 +331,12 @@ class Crystal:
         return np.split(np.asarray(fields), 2, axis=0)
 
     def get_source_as_field_vectors(self):
+        """
+        Construct a Field supervector from the current Crystal source.
+
+        Returns:
+            tuple: (E, H) in Fourier space
+        """
         efield = incident(
             self.pw,
             self.source.te,

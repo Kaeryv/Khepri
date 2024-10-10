@@ -153,11 +153,14 @@ def solve_uniform_layer(Kx, Ky, er, m_r = 1):
     Q = (er/m_r) * P
     W = np.identity(2*N)
     arg = (m_r*er*I-Kx**2-Ky**2)
-    arg = arg.astype('complex')
-    Kz = np.conj(csqrt(np.diag(arg)))
-    eigenvalues = np.hstack((1j*Kz, 1j*Kz))
-    mask = np.logical_or(eigenvalues.imag < 0.0, np.logical_and(np.isclose(eigenvalues.imag, 0.0), eigenvalues.real < 0.0))
-    np.negative(eigenvalues, where=mask, out=eigenvalues)
+    kz = np.diag(arg).astype('complex')
+    mask = kz.real < 0
+    kz[mask] = -1j * np.sqrt(-kz[mask])
+    kz[~mask] = np.sqrt(kz[~mask])
+    #Kz = np.conj(csqrt(np.diag(arg)))
+    eigenvalues = np.hstack((1j*kz, 1j*kz))
+    #mask = np.logical_or(eigenvalues.imag < 0.0, np.logical_and(np.isclose(eigenvalues.imag, 0.0), eigenvalues.real < 0.0))
+    #np.negative(eigenvalues, where=mask, out=eigenvalues)
     V = Q / eigenvalues
 
     return W, V, eigenvalues

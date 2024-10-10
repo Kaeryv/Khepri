@@ -17,11 +17,12 @@ def generate_expansion_indices(pw):
 
 
 def kz_from_kplanar(kx, ky, k0, epsilon):
-    arg = k0**2 * epsilon - kx**2 - ky**2
-    kz = arg.astype("complex")
-    mask = kz.real < 0
-    kz[mask] = -1j * np.sqrt(-kz[mask])
-    kz[~mask] = np.sqrt(kz[~mask])
+    arg = k0**2 * np.conj(epsilon) - kx**2 - ky**2
+    kz = np.conj(np.sqrt(arg.astype("complex")))
+    #kz = arg.astype("complex")
+    #mask = kz.real < 0
+    #kz[mask] = -1j * np.sqrt(-kz[mask])
+    #kz[~mask] = np.sqrt(kz[~mask])
     return kz
 
 
