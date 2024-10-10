@@ -1,19 +1,19 @@
 import sys
 sys.path.append(".")
 import numpy as np
-from bast.crystal import Crystal
+from khepri.crystal import Crystal
 
 import numpy as np
 import matplotlib.pyplot as plt
-from bast.draw import Drawing
-from bast.expansion import Expansion
-from bast.beams import _paraxial_gaussian_field_fn, shifted_rotated_fields, _paraxial_laguerre_gaussian_field_fn
-from bast.tools import compute_kplanar
+from khepri.draw import Drawing
+from khepri.expansion import Expansion
+from khepri.beams import _paraxial_gaussian_field_fn, shifted_rotated_fields, _paraxial_laguerre_gaussian_field_fn
+from khepri.tools import compute_kplanar
 import sys
-from bast.beams import amplitudes_from_fields
-from bast.misc import coords
+from khepri.beams import amplitudes_from_fields
+from khepri.misc import coords
 from matplotlib.animation import FuncAnimation
-from bast.layer import Field
+from khepri.layer import Field
 
 
 bzx, bzy = 41, 1
@@ -27,7 +27,7 @@ theta = np.deg2rad(25)
 eps1 = 1
 eps2 = 4
 
-from bast.beams import gen_bzi_grid
+from khepri.beams import gen_bzi_grid
 
 kbz = gen_bzi_grid((bzx, bzy))
 print(kbz.shape)
