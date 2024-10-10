@@ -1,18 +1,18 @@
 import sys
 sys.path.append(".")
 import numpy as np
-from bast.crystal import Crystal
+from khepri.crystal import Crystal
 
 import numpy as np
 import numpy as np
 from typing import Callable, Tuple
 
 import matplotlib.pyplot as plt
-from bast.draw import Drawing
-from bast.layer import Layer
-from bast.expansion import Expansion
-from bast.beams import _paraxial_gaussian_field_fn, shifted_rotated_fields, _paraxial_laguerre_gaussian_field_fn
-from bast.tools import compute_kplanar
+from khepri.draw import Drawing
+from khepri.layer import Layer
+from khepri.expansion import Expansion
+from khepri.beams import _paraxial_gaussian_field_fn, shifted_rotated_fields, _paraxial_laguerre_gaussian_field_fn
+from khepri.tools import compute_kplanar
 import sys
 
 bzi = int(sys.argv[1])

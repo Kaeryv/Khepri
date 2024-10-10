@@ -7,6 +7,7 @@ else:
 from .layer import Layer
 from .crystal import Crystal
 from .expansion import Expansion
+from .draw import Drawing
 
 import pickle
 def load(path):
@@ -16,3 +17,4 @@ def load(path):
 def save(path, obj):
     with open(path, "wb") as f:
         return pickle.dump(obj, f)
+    

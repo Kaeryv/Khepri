@@ -1,9 +1,9 @@
 import sys
 sys.path.append(".")
-from bast.alternative import incident
+from khepri.alternative import incident
 import numpy as np
 import matplotlib.pyplot as plt
-from bast.beams import _paraxial_gaussian_field_fn, shifted_rotated_fields, _paraxial_laguerre_gaussian_field_fn
+from khepri.beams import _paraxial_gaussian_field_fn, shifted_rotated_fields, _paraxial_laguerre_gaussian_field_fn
 
 N=64
 x = np.linspace(-1, 1, N)

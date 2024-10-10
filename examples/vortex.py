@@ -20,12 +20,10 @@ def size(angle):
 NS = 71
 wl = 0.63
 theta = 0.0*np.pi
-twist_angle = np.deg2rad(3)
-twcell = size(twist_angle)
-override=sys.argv[4] == "override"
-ar=4
-zres = 256
-xyres = 512
+twist_angle = 3
+twcell = size(np.deg2rad(twist_angle))
+override=sys.argv[2] == "o"
+xyres = 256
 
 
 pw = (3,3)
@@ -86,14 +84,6 @@ for kp in tqdm(kbz2):
     twcl.solve()
     crystals.append(twcl)
 
-def plot_expansion_field(kx, ky, F):
-    fig, ax = plt.subplots()
-    size = np.abs(F)
-    size /= np.max(size)
-    ax.scatter(kx.real, ky.real, s=size*10)
-    #for x,y,z in  zip(kx, ky, F):
-    #    ax.text(x, y, f"{z.real:.1e},{z.imag:.1e}", fontsize=6)
-    plt.show()
 from khepri.fields import dft
 def amplitudes_from_fields(etw, fields, kp, x, y):
     kxi, kyi = kp
@@ -135,73 +125,38 @@ Fs = [np.asarray([F[:, 0, 0],F[:, 0, 1],F[:, 1, 0],F[:, 1, 1]]).flatten() for F 
 #F = np.linalg.solve(R0, F)
 Fs = [ np.split(F, 2)[0] for F in Fs ]
 x = np.linspace(0, twcell*bzs[0], xyres)
-y = np.ones_like(x)*0.5*bzs[0]*twcell
+y = np.linspace(0, twcell*bzs[1], xyres)
+x, y = np.meshgrid(x, y)
 rx, ry, _ = etw.k_vectors(kp, wl)
 from tqdm import tqdm
-from matplotlib.animation import FuncAnimation
 print(x.shape, y.shape)
 # Do BZI
 zmax = twcl.stack_positions[-1]
-zvals =np.linspace(0.0001, zmax, zres)
 import os
 fn = "tmpfields.npy"
 if os.path.isfile(fn) and not override:
+    print("loading fields from disk")
     fields = np.load(fn)
 else:
-    print("loading fields from disk")
     fields = list()
-    for c, F, kp in zip(crystals, Fs, kbz2):
-        E, H = c.fields_volume2(x, y, tqdm(zvals), incident_fields=F, use_lu=False)
+    for c, F, kp in zip(tqdm(crystals), Fs, kbz2):
+        E, H = c.fields_coords_xy(x, y, 1, F, use_lu=False)
         fields.append((E, H))
     fields = np.asarray(fields)
     np.save(fn, fields)
 from khepri.layer import Field
 
-action = sys.argv[3]
-
 shown = Field.X
-if action == "static":
-    fields = fields.mean(0)
-    fields = fields[0, :, shown, :]
-    print(np.max(fields.real), np.min(fields.real))
-    fig, ax = plt.subplots(figsize=(5,6))
-    image = ax.matshow(fields.real, cmap="RdBu",extent=[0, np.max(x), 0, zmax]) #, vmin=-1, vmax=1
-    ax.set_aspect(ar)
-    ax.set_xlabel("Length [µm]")
-    ax.set_ylabel("Depth [µm]")
-    fig.savefig("anim_twisted.png")
-
-elif action == "explain":
-    fig, axs = plt.subplots(*bzs)
-    for i, (e, ax) in enumerate(zip(fields, axs.flatten())):
-        ax.matshow(fields[i, 0, :, shown, :].real, cmap="RdBu")
-        ax.axis("equal")
-        ax.axis("off")
-    fig.savefig("Bzi_explain.png")
-
-elif action == "anim":
-    fields = fields.mean(0)
-    fields = fields[0, :, shown, :]
-    K = np.exp(1j)
-    fig, ax = plt.subplots(figsize=(6,6))
-    image = ax.matshow(fields.real, cmap="RdBu",extent=[0, np.max(x), 0, zmax]) #, vmin=-1, vmax=1
-
-    #ax.plot(np.linspace(0,bzs[0], len(eps)), 4.2+eps, "k-")
-    #ax.plot(np.linspace(0,bzs[0], len(eps)), 4.2+0.55+1.1+eps, "k-")
-    # ax.axhline(4.2, color='k')
-    # ax.axhline(4.2+0.55, color='k')
-    # ax.axhline(4.2+0.55+1.1, color='k')
-    # ax.axhline(4.2+0.55+1.1+0.55, color='k')
-
-    ax.text(0.2, 3.5, "$\\varepsilon=4$")
-    ax.text(0.2, 5.5, "$\\varepsilon=1$")
-    ax.set_aspect(1)
-    ax.set_xlabel("Length [µm]")
-    ax.set_ylabel("Depth [µm]")
-    ax.set_xlim(np.max(x)/2-20,np.max(x)/2+20)
-    def update(frame):
-        image.set_data((fields * K**frame).real)
-        return image,
-
-    ani = FuncAnimation(fig, update, frames=np.linspace(0, 2*np.pi, int(sys.argv[2]), endpoint=False))
-    ani.save("tanim.gif")
+fields = fields.mean(0)
+fields = fields[0, shown, :, :]
+sr = source_real[..., 0, shown]
+fig, axs = plt.subplots(2, 2, figsize=(5,6))
+image = axs[0,0].matshow(np.abs(fields), cmap="hot",extent=[0, np.max(x), 0, np.max(y)]) #, vmin=-1, vmax=1
+image = axs[0,1].matshow(np.angle(fields), cmap="hsv",extent=[0, np.max(x), 0, np.max(y)]) #, vmin=-1, vmax=1
+image = axs[1,0].matshow(np.abs(sr), cmap="hot",extent=[0, np.max(x), 0, np.max(y)]) #, vmin=-1, vmax=1
+image = axs[1,1].matshow(np.angle(sr), cmap="hsv",extent=[0, np.max(x), 0, np.max(y)]) #, vmin=-1, vmax=1
+#ax1.set_aspect(ar)
+axs[0,0].set_xlabel("Length [µm]")
+axs[0,0].set_ylabel("Width [µm]")
+fig.savefig("anim_twisted.png")
+plt.show()

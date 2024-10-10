@@ -1,9 +1,12 @@
 loaders:
   - type: python
-    search_path: [.]
+    search_path: [./khepri/]
 processors:
   - type: filter
-    expression: not name.startswith('khepri.tmat') and default()
+    expression: not name.startswith('khepri.tmat') and not name.startswith('ez') and default()
+    documented_only: true
+  - type: filter
+    expression: not name.startswith('gui') and not name.startswith('misc') and default()
     documented_only: true
   - type: smart
   - type: crossref

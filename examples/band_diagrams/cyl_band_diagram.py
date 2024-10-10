@@ -15,11 +15,11 @@ args = parser.parse_args()
 
 import pickle
 
-from bast.tools import nanometers
-from bast.tmat.matrices import multS
-from bast.tmat.lattice import CartesianLattice
-from bast.tmat.scattering import scattering_matrix
-from bast.eigentricks import scattering_splitlr
+from khepri.tools import nanometers
+from khepri.tmat.matrices import multS
+from khepri.tmat.lattice import CartesianLattice
+from khepri.tmat.scattering import scattering_matrix
+from khepri.eigentricks import scattering_splitlr
 from tqdm import tqdm
 import numpy as np
 from itertools import product

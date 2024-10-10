@@ -1,10 +1,10 @@
 import sys
 sys.path.append(".")
-from bast.tools import  nanometers
-from bast.tmat.matrices import matrix_s
-from bast.tmat.lattice import CartesianLattice
+from khepri.tools import  nanometers
+from khepri.tmat.matrices import matrix_s
+from khepri.tmat.lattice import CartesianLattice
 import numpy as np
-from bast.tmat.scattering import scattering_matrix
+from khepri.tmat.scattering import scattering_matrix
 
 pw = (40, 40)
 nx, ny = pw[0] // 2, pw[1] // 2
