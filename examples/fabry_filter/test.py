@@ -2,10 +2,10 @@ import sys
 sys.path.append(".")
 import numpy as np
 import matplotlib.pyplot as plt
-from bast.tmat.lattice import CartesianLattice
-from bast.tmat.scattering import scattering_matrix, scattering_interface
-from bast.tools import c, incident, compute_fluxes
-from bast.alternative import scattering_structured_layer, Lattice, scat_base_transform,redheffer_product,incident as incident2,scattering_reflection,scattering_transmission, scattering_uniform_layer
+from khepri.tmat.lattice import CartesianLattice
+from khepri.tmat.scattering import scattering_matrix, scattering_interface
+from khepri.tools import c, incident, compute_fluxes
+from khepri.alternative import scattering_structured_layer, Lattice, scat_base_transform,redheffer_product,incident as incident2,scattering_reflection,scattering_transmission, scattering_uniform_layer
 from numpy.lib.scimath import sqrt as csqrt
 from tqdm import tqdm
 
