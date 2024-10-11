@@ -90,9 +90,21 @@ def dft(field, kx, ky, a=1):
             KXk = KXk * KX
     return ffields
 
+@njit(parallel=True)
+def slow_dft(real_field, x, y, kx, ky):
+    """
+    DFT function that works on any grid.
+    real field stores values at locations x, y.
+    """
+
+    fourier_fields = np.zeros_like(kx, dtype=np.complex128)
+    for i in prange(kx.shape[0]):
+        for k in range(len(real_field)):
+            fourier_fields[i] += real_field[k] * np.exp(-1j*(kx[i]*x[k]+ky[i]*y[k]))
+    return fourier_fields
 
 @njit(parallel=BAST_MT_ON)
-def idft(ffield, kx, ky, x, y):
+def idft2(ffield, kx, ky, x, y):
     """
     Turns Fourier-space fields into real-space fields using home-made DFT.
     This allows to choose when the fields should be evaluated.
@@ -121,6 +133,7 @@ def idft(ffield, kx, ky, x, y):
         fields += field_i
     return fields.reshape(oshape)
 
+def idft(ffield, kx, ky, x, y):
     coord_shape = x.shape
     x, y = x.flatten(), y.flatten()
     phase = np.exp(1j * (kx[..., np.newaxis] * x + ky[..., np.newaxis] * y))

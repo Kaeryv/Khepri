@@ -17,6 +17,14 @@ def block_split(S):
     # B = [np.hsplit(half, 2) for half in np.vsplit(S, 2)]
     return np.asarray([[S[one, one], S[one, two]],[S[two, one], S[two, two]]])
 
+def split(array, nrows, ncols):
+    """Split a matrix into sub-matrices."""
+
+    r, h = array.shape
+    return (array.reshape(h//nrows, nrows, -1, ncols)
+                 .swapaxes(1, 2)
+                 .reshape(-1, nrows, ncols))
+
 def coords(xmin, xmax, ymin, ymax, zmin, zmax, resolution):
     x = np.linspace(xmin, xmax, resolution[0])
     y = np.linspace(ymin, ymax, resolution[1])

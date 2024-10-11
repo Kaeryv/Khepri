@@ -64,17 +64,18 @@ def shifted_rotated_fields(
     mat = rotation_matrix(polar_angle, azimuthal_angle, polarization_angle)
     mat = np.expand_dims(mat, tuple(range(x.ndim)))
 
-    coords = np.stack([x, y, z], axis=-1)
+    coords = np.stack([x, y, z], axis=-1).reshape(*x.shape, 3, 1)
+    print(mat.shape, coords.shape)
     rotated_coords = np.linalg.solve(mat, coords)
-    rotated_coords = np.split(rotated_coords, 3, axis=-1)
+    rotated_coords = np.split(rotated_coords, 3, axis=-2)
     xf, yf, zf = [np.squeeze(r, axis=-1) for r in rotated_coords]
 
     # Solve for the rotated origin.
-    origin = np.stack([beam_origin_x, beam_origin_y, beam_origin_z], axis=-1)
+    origin = np.stack([beam_origin_x, beam_origin_y, beam_origin_z], axis=-1).reshape(3, 1)
     origin = np.expand_dims(origin, tuple(range(0, mat.ndim - 2)))
     rotated_origin = np.linalg.solve(mat, origin)
     assert rotated_origin.size == 3
-    rotated_origin = np.split(rotated_origin, 3, axis=-1)
+    rotated_origin = np.split(rotated_origin, 3, axis=-2)
     xf0, yf0, zf0 = [np.squeeze(r) for r in rotated_origin]
 
     # Compute the fields on the rotated, shifted coordinate system.
@@ -96,7 +97,7 @@ def shifted_rotated_fields(
     hy = np.squeeze(hy, axis=(-2, -1))
     hz = np.squeeze(hz, axis=(-2, -1))
 
-    return (ex, ey, ez), (hx, hy, hz)
+    return np.asarray([(ex, ey, ez), (hx, hy, hz)])
 
 
 
@@ -157,6 +158,8 @@ def _paraxial_gaussian_field_fn(x, y, z, wl, beam_waist=1, er=1):
     hy = ex / np.sqrt(er)
     hz = np.zeros_like(ex)
     return (ex, ey, ez), (hx, hy, hz)
+from khepri.fourier import slow_dft
+from khepri.misc import split
 
 def amplitudes_from_fields(fields, e, wl, kp, x, y, bzs, a=1):
     kxi, kyi = kp
@@ -166,7 +169,16 @@ def amplitudes_from_fields(fields, e, wl, kp, x, y, bzs, a=1):
     F = np.asarray(np.split(F, bzs[0], axis=1))
     F = np.asarray(np.split(F, bzs[1], axis=1))
 
+    F = np.swapaxes(F, 0, 1)
     NS = F.shape[2]
+
+    x = np.asarray(np.split(x, bzs[0], axis=1))
+    x = np.asarray(np.split(x, bzs[1], axis=1))
+    x = x.reshape(-1, NS, NS)
+    y = np.asarray(np.split(y, bzs[0], axis=1))
+    y = np.asarray(np.split(y, bzs[1], axis=1))
+    y = y.reshape(-1, NS, NS)
+
     kx, ky = e.g_vectors
     F = F.reshape(-1, NS, NS, 2, 3)
     F = F[..., :2].reshape(-1, NS, NS, 4)
@@ -174,8 +186,8 @@ def amplitudes_from_fields(fields, e, wl, kp, x, y, bzs, a=1):
 
     for i in range(F.shape[0]):
         for j in range(4):
-            Fdft[i, j] = dft(F[i, ..., j], kx, ky, a=a).reshape(e.pw).flatten() / F.shape[0]/F.shape[1]
-
+            #Fdft[i, j] = dft(F[i, ..., j], kx, ky, a=a).reshape(e.pw).flatten() / F.shape[0]/F.shape[1]
+            Fdft[i, j] = slow_dft(F[i, ..., j].flatten(), x[i].flatten(), y[i].flatten(), kx.flatten(), ky.flatten()) / F.shape[0]/F.shape[1]
     return np.sum(Fdft, 0)
 
 def gen_bzi_grid(shape, a=1, reciproc=None):
