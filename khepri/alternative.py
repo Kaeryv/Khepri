@@ -10,16 +10,11 @@
 """
 
 import numpy as np
-from math import prod, floor, sqrt
 from numpy.lib.scimath import sqrt as csqrt
 from numpy.linalg import inv, solve
-from cmath import pi
-from .constants import c
 from .tools import convolution_matrix
-from .tools import rotation_matrix
-from scipy.linalg import block_diag
-from .tools import unitcellarea
 import logging
+from math import prod
 
 def redheffer_product(SA, SB):
     I = np.eye(SA[0,0].shape[0], dtype=np.complex128)
@@ -45,7 +40,7 @@ def scattering_reflection(KX, KY, W0, V0, er, ur=1):
         np.hstack([KY @ KY - er*ur*I,        - KY @ KX]),
     ]) / ur
 
-    arg = (ur*er*I-KX**2-KY**2);
+    arg = (ur*er*I-KX**2-KY**2)
     arg = np.diag(arg)
     arg = arg.astype('complex')
     Kz = np.conj(csqrt(arg))
@@ -66,17 +61,11 @@ def scattering_transmission(KX, KY, W0, V0, er, ur=1):
     I = np.eye(KX.shape[0])
     KX = np.diag(KX)
     KY = np.diag(KY)
-    # Pref = np.vstack([
-    #     np.hstack([KX @ KY,     I - KX @ KX]),
-    #     np.hstack([KY @ KY - I,    -KY @ KX]),
-    # ])
     Qref = np.vstack([
         np.hstack([KX @ KY,     er*ur*I - KX @ KX]),
         np.hstack([KY @ KY - er*ur*I,   - KY @ KX]),
     ]) / ur
-    # Solve the eigen problem
-    #eigenvals, Wref = np.linalg.eig(Pref @ Qref)
-    arg = (er*ur*I-KX**2-KY**2); #arg is kz^2
+    arg = (er*ur*I-KX**2-KY**2) #arg is kz^2
     arg = np.diag(arg)
     arg = arg.astype('complex')
     Kz = np.conj(csqrt(arg))
@@ -106,7 +95,7 @@ def free_space_eigenmodes(KX, KY):
     kz[mask] = -1j * np.sqrt(-kz[mask])
     kz[~mask] = np.sqrt(kz[~mask])
     eigenvalues = np.hstack((1j*kz, 1j*kz))
-    V = Q / eigenvalues; 
+    V = Q / eigenvalues 
     return W, V
 
 def incident(pw, p_pol, s_pol, k_vector):
@@ -220,8 +209,6 @@ def scattering_structured_layer(expansion, kp, wl, epsilon_map, depth, return_ei
     W0, V0 = free_space_eigenmodes(kx, ky)
     k0 = 2 * np.pi / wl
     C = convolution_matrix(epsilon_map, expansion.pw)
-    IC = convolution_matrix(1/epsilon_map, expansion.pw)
-
     WI, VI, LI =  solve_structured_layer(kx, ky, C)
     S = build_scatmat(WI, VI, W0, V0, LI, depth, k0)
     if return_eigenspace:
