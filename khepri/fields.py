@@ -43,29 +43,6 @@ def fourier2real_fft(ffield, a, target_resolution=(127,127), kp=(0,0)):
     F = np.fft.ifft2(np.fft.ifftshift(ext_fft)) * phase
     return F
 
-
-
-#     kx, ky = kx.flatten(), ky.flatten()
-#     phase = np.exp(-1j*(kx*x[..., np.newaxis]+ky*y[..., np.newaxis]))
-#     ffield = field[...,np.newaxis] * phase
-#     ffield = np.sum(ffield, axis=(0,1))
-#     return ffield.reshape(coord_shape)
-
-
-
-def real2fourier_xy(field, kx, ky, x, y):
-    '''
-        Turns Fourier-space fields into real-space fields using home-made DFT.
-        This allows to choose when the fields should be evaluated.
-        This routine is way slower for the whole unit cell.
-    '''
-    coord_shape = kx.shape
-    kx, ky = kx.flatten(), ky.flatten()
-    phase = np.exp(1j*(kx*x[..., np.newaxis]+ky*y[..., np.newaxis]))
-    ffield = field[...,np.newaxis] * phase
-    ffield = np.sum(ffield, axis=2)
-    return ffield.reshape(coord_shape)
-
 def layer_eigenbasis_matrix(WI, VI):
     '''
         Matrix whose columns are the eigenmodes of the E (upper part) and H  (lower part) fields eigenmodes.
@@ -78,11 +55,11 @@ def fourier_fields_from_mode_amplitudes(RI, LI, R0, mode_amplitudes, zbar, luRI=
         Computes the fields from the mode coefficients at specified z-location (depth).
     '''
     L = np.hstack(compute_z_propagator(LI, zbar))
+    # We should not let the phasor become too big or numerical inacuracies will show up
+    mask = np.abs(L) > 1e14
+    L[mask] /= np.abs(L[mask]) / 1e14
 
-    if luRI is None:
-        return np.split(RI @  (L * solve(RI,    R0 @ np.hstack(mode_amplitudes))), 4)
-    else:
-        return np.split(RI @ (L*lu_solve(luRI,  R0 @ np.hstack(mode_amplitudes))), 4)
+    return np.split(RI @  (L * solve(RI, R0 @ np.hstack(mode_amplitudes))), 4)
 
 def isnumber(x):
     return isinstance(x, (int, float, complex)) and not isinstance(x, bool)
