@@ -143,6 +143,8 @@ class Crystal:
 
         if fields_mask is None:
             self.stack_retain_mask = [False] * len(self.global_stacking)
+        elif isinstance(fields_mask, bool):
+            self.stack_retain_mask = [fields_mask] * len(self.global_stacking)
         else:
             self.stack_retain_mask = [True]
             self.stack_retain_mask.extend(fields_mask)
