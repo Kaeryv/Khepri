@@ -19,7 +19,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['NUMEXPR_NUM_THREADS'] = '1'
 os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['BAST_MT_ON'] = '0'
+os.environ['KHEPRI_MT_ON'] = '0'
 
 """
     Parameters

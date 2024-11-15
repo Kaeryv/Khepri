@@ -1,8 +1,8 @@
 import os
-if "BAST_MT_ON" in os.environ:
-    BAST_MT_ON=bool(int(os.environ["BAST_MT_ON"]))
+if "KHEPRI_MT_ON" in os.environ:
+    KHEPRI_MT_ON=bool(int(os.environ["KHEPRI_MT_ON"]))
 else:
-    BAST_MT_ON=True
+    KHEPRI_MT_ON=True
 
 from .layer import Layer
 from .crystal import Crystal
