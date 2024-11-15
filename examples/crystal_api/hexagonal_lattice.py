@@ -1,44 +1,22 @@
 import sys
-
 sys.path.append(".")
-from khepri.crystal import Crystal
-from khepri.draw import Drawing
+
+from khepri import Crystal, Drawing
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from khepri.constants import c
-from khepri.fourier import transform_disc
-import logging
 
-# logging.getLogger().setLevel(logging.DEBUG)
-
-
-from scipy.io import loadmat
-data = loadmat('square_11_77.mat')
-tmat_ttot = data["Ttot"]
-tmat_lambda = data["lambda"] * 1e6
-
-# Define the structure
 def main(pp, zres, progress=True):
-    cl = Crystal((pp,) * 2, lattice="square")
+    cl = Crystal((pp, pp), lattice="hexagonal")
     N = 512
-    radius = 0.4
+    radius = 0.25
     epsh = 12
-    d = Drawing((N, N), epsh, cl.lattice)
+    d = Drawing((N, N), epsh, lattice=cl.lattice)
     d.disc((0.0, 0.0), radius, 1)
-    #fig, (ax1, ax2) = plt.subplots(2)
-    #gx, gy = cl.expansion.g_vectors
-    #ff = transform_disc(0., 0., radius, gx, gy, 1).reshape(pp,pp).T * epsh
-    #ff = np.fft.ifft2(np.fft.ifftshift(ff)) * pp * pp
-    #im1 = ax1.matshow(np.tile(ff.real, (2,2)), origin="lower")
-    #plt.colorbar(im1)
-    #c = (N-1) // 2
-    ##ax2.set_xlim(c-pp//2, c+pp//2)
-    ##ax2.set_ylim(c-pp//2, c+pp//2)
-    #d.plot("Structure.png", what="reconstruct", ax=ax2, tiling=(2,2))
+    d.plot("Structure.png", tiling=(1,1))
     sl = 2
-    #cl.add_layer_pixmap("Scyl", d.canvas(), 0.55/sl)
-    cl.add_layer_analytical("Scyl", d.islands(), epsh, 0.55/sl)
+    cl.add_layer_pixmap("Scyl", d.canvas(), 0.55/sl)
     cl.add_layer_uniform("Si", 1.0, 1.1/sl)
     stacking = []
     stacking.extend(["Scyl"]*sl)
@@ -46,12 +24,9 @@ def main(pp, zres, progress=True):
     stacking.extend(["Scyl"]*sl)
 
     cl.set_device(stacking, [True] * len(stacking))
-    tidy3D2 = np.loadtxt("holey_pair_30.csv", delimiter=",")
-    tidy3D = np.loadtxt("holey_pair.csv", delimiter=",")
     if True:
         chart = list()
         wls = np.linspace(1.46666, 1/0.49, 300)
-        print(np.min(wls), np.max(wls))
         for wl in wls:
             cl.set_source(wl, 1.0, 1.0, 0.0, 0.0)
             cl.solve()
@@ -59,10 +34,7 @@ def main(pp, zres, progress=True):
 
         fig, ax = plt.subplots()
         ax.plot(wls, np.asarray(chart)[:, 1], 'b-')
-        ax.plot(tmat_lambda, tmat_ttot, "r-")
-        #ax.plot(tidy3D[:,0], tidy3D[:,1], "r:")
-        ax.plot(tidy3D2[:,0], tidy3D2[:,1], "k:")
-        
+
         #plt.axvline(0.5185, color="k")
         # d = np.loadtxt("data/holey_pair_45.csv", skiprows=7, delimiter=",")
         # plt.plot(d[:, 0] * 1e12 / c * 1e-6, d[:, 1])
@@ -100,4 +72,4 @@ def main(pp, zres, progress=True):
 
 
 if __name__ == "__main__":
-    main(5, 128)
+    main(3, 128)

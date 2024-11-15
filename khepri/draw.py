@@ -116,7 +116,11 @@ class Drawing:
             fourier = fftshift(fft2(img)) / np.prod(img.shape)
             img = ifft2(ifftshift(fourier)) * np.prod(img.shape)
         
-        handle = ax.matshow(np.tile(img.real, tiling).T, extent=[self.x0, self.x1, self.y0, self.y1], origin="lower", cmap="Blues")
+        tx, ty = tiling
+        a1, a2 = self.lattice
+        for i in np.arange(-(tx//2), (tx//2)+1):
+            for j in np.arange(-(ty//2), (ty//2)+1):
+                handle = ax.pcolormesh(i * a1[0] + j * a2[0] + self.X, i * a1[1] + j * a2[1] + self.Y, img.real, cmap="Blues")
         ax.axis("equal")
         plt.colorbar(handle)
 
