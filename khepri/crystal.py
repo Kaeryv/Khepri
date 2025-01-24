@@ -98,7 +98,15 @@ class Crystal:
         the more generic `add_layer` with a Layer object instancianted using `Layer.uniform`.
         """
         self.layers[name] = Layer.uniform(self.expansion, epsilon, depth)
-
+    def add_layer_pixmap_or_uniform(self, name, epsilon, depth):
+        """
+        Add layer from 2D ndarray that provides eps(x,y).
+        """
+        sample = epsilon.flatten()[0]
+        if np.all(epsilon == sample):
+            self.add_layer_uniform(name, sample, depth)
+        else:
+            self.add_layer_pixmap(name, epsilon, depth)
     def add_layer_pixmap(self, name, epsilon, depth):
         """
         Add a layer from 2D ndarray that provides eps(x,y). This method will use FFT.
@@ -117,7 +125,7 @@ class Crystal:
         else:
             self.layers[name] = layer
 
-    def set_device(self, layers_stack, fields_mask=None):
+    def set_device(self, layers_stack, fields_mask=False):
         """
         Take the stacking from the user device and pre.a.ppend the incidence and emergence media.
         """
@@ -141,18 +149,16 @@ class Crystal:
             )
             self.layers["Strans"].fields = True
 
-        if fields_mask is None:
-            self.stack_retain_mask = [False] * len(self.global_stacking)
-        elif isinstance(fields_mask, bool):
-            self.stack_retain_mask = [fields_mask] * len(self.global_stacking)
-        else:
-            self.stack_retain_mask = [True]
-            self.stack_retain_mask.extend(fields_mask)
-            self.stack_retain_mask.append(True)
-            for name, enabled in zip(self.global_stacking, self.stack_retain_mask):
-                self.layers[name].fields |= enabled
-                if hasattr(self.layers[name], "base"):
-                    self.layers[name].base.fields |= enabled
+        fields_mask = [fields_mask] * len(layers_stack) if isinstance(fields_mask, bool) else fields_mask
+
+        self.stack_retain_mask = [True]
+        self.stack_retain_mask.extend(fields_mask)
+        self.stack_retain_mask.append(True)
+
+        for name, enabled in zip(self.global_stacking, self.stack_retain_mask):
+            self.layers[name].fields |= enabled
+            if hasattr(self.layers[name], "base"):
+                self.layers[name].base.fields |= enabled
 
     @property
     def depth(self):

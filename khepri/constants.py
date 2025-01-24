@@ -9,3 +9,5 @@ ev = 1.602e-19
 
 def fn2ev(f, pitch):
     return h * f * c / (pitch * 1e-6) / ev
+def ev2fn(fev, pitch):
+    return fev / h / c * (pitch * 1e-6) * ev

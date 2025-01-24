@@ -98,12 +98,13 @@ def free_space_eigenmodes(KX, KY):
     V = Q / eigenvalues 
     return W, V
 
-def incident(pw, p_pol, s_pol, k_vector):
+def incident(pw, p_pol, s_pol, k_vector, normalize=True):
     logging.debug(f"Building vector with plane wave {pw=}, {p_pol=}, {s_pol=}, {k_vector=}")
     # Normalize in pol basis
     pol_norm = np.linalg.norm((abs(p_pol), abs(s_pol)))
-    p_pol /= pol_norm
-    s_pol /= pol_norm
+    if normalize:
+        p_pol /= pol_norm
+        s_pol /= pol_norm
 
     kp = k_vector[0:2]
     kpnorm = np.linalg.norm(kp)
@@ -237,7 +238,7 @@ def poynting_fluxes(expansion, c_output, kp, wavelength, only_total=True, epsi=1
     sx, sy = np.split(c_output, 2)
     kx, ky, kz = expansion.k_vectors(kp, wavelength, epse)
     sz = - (kx * sx + ky * sy) / kz
-    t = kz.real / kzi * (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
+    t = kz.real / np.real(kzi) * (np.abs(sx)**2+np.abs(sy)**2+np.abs(sz)**2)
     if only_total:
         return np.sum(t)
     else:
