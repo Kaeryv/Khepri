@@ -98,7 +98,7 @@ class Crystal:
         the more generic `add_layer` with a Layer object instancianted using `Layer.uniform`.
         """
         self.layers[name] = Layer.uniform(self.expansion, epsilon, depth)
-    def add_layer_pixmap_or_uniform(self, name, epsilon, depth):
+    def add_pixmap_or_uniform(self, name, epsilon, depth):
         """
         Add layer from 2D ndarray that provides eps(x,y).
         """
