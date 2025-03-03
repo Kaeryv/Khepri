@@ -53,3 +53,8 @@ def quiver(ax, X, Y, VX, VY, subsample=2, **kwargs):
 def poynting_vector(E, H, axis=-1):
     # Computes poynting vector from E, H arrays where last dimension usually distinguishes the xyz projections
     return np.cross(E, np.conj(H), axis=axis)
+
+
+
+def ensure_array(x):
+    return np.array(x)

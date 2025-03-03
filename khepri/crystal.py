@@ -29,6 +29,7 @@ from cmath import sqrt as csqrt
 import numpy as np
 from numpy.linalg import solve
 
+from .misc import ensure_array
 
 class Crystal:
     """This class has the goal to provide a simple interface for
@@ -54,6 +55,7 @@ class Crystal:
         self.void = void
         self.epsi = epsi
         self.epse = epse
+        self.source = None
 
         if isinstance(lattice, str):
             if lattice == "square":
@@ -76,6 +78,7 @@ class Crystal:
         self.layers = dict()
         self.stacking_matrices = list()
         self.stack_positions = []
+        self.S = None
 
     @classmethod
     def from_expansion(cls, expansion, **kwargs):
@@ -166,8 +169,16 @@ class Crystal:
         for name in self.device_stack:
             depth += self.layers[name].depth
         return depth
+    @property
+    def source_defined(self):
+        return self.source is not None
+    
+    @property
+    def solved(self):
+        return self.S is not None
 
     def solve(self):
+        assert self.source_defined, "Call set_source before solving."
         # Solving the required layers
         required_layers = set(self.global_stacking)
         logging.debug('Solving each required layer')
@@ -206,7 +217,7 @@ class Crystal:
         assert z != np.nan
         layer_index = np.searchsorted(self.stack_positions, z) - 1
         layer_name = self.global_stacking[layer_index]
-        if z < 0:
+        if z <= 0:
             zr = z
         else:
             zr = z - self.stack_positions[layer_index]
@@ -295,7 +306,10 @@ class Crystal:
         Returns:
             tuple: contains the E and H fields.
         """
-        assert x.shape == y.shape
+        x = ensure_array(x)
+        y = ensure_array(y)
+        assert x.shape == y.shape and (len(x.shape) == 2), "x and y must be 2D meshgrids"
+        assert self.solved, "Call solve first."
         if kp is None:
             kp = self.kp
         if incident_fields is None:
@@ -322,14 +336,10 @@ class Crystal:
         if incident_fields is None:
             incident_fields = self.get_source_as_field_vectors()
         
-        fields = []
-        for zi in z:
-            fields.append(
-                self.fields_coords_xy(
-                    x, y, zi, np.hstack(incident_fields)
-                )
-            )
-        fields = np.asarray(fields)
+        fields = np.array([
+            self.fields_coords_xy(x, y, zi, np.hstack(incident_fields))
+            for zi in z
+        ])
         return fields[:, 0, ...], fields[:, 1, ...]
 
     def set_source(self, wavelength, te=1.0, tm=1.0, theta=0.0, phi=0.0, kp=None):
@@ -349,7 +359,9 @@ class Crystal:
         self.k0 = 2 * np.pi / wavelength
         self.kzi = np.conj(csqrt(self.k0**2 * self.epsi - kxi**2 - kyi**2))
 
+
     def poynting_flux_end(self, only_total=True):
+        assert self.solved, "Call solve first"
         incident_fields = incident(
             self.pw,
             self.source.te,
@@ -386,3 +398,9 @@ class Crystal:
     @property
     def zmax(self):
         return self.stack_positions[-2]
+
+
+
+class Multilayer(Crystal):
+    def __init__(self, epsi=1, epse=1):
+        super().__init__((1,1), lattice="square", lattice_pitch=1, void=False, epsi=epsi, epse=epse)

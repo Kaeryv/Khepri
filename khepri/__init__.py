@@ -5,7 +5,7 @@ else:
     KHEPRI_MT_ON=True
 
 from .layer import Layer
-from .crystal import Crystal
+from .crystal import Crystal, Multilayer
 from .expansion import Expansion
 from .draw import Drawing
 
