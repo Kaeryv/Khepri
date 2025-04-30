@@ -87,9 +87,12 @@ class Drawing:
 
 
 
-    def canvas(self, shape=None, interp_method="linear"):
+    def canvas(self, shape=None, interp_method="linear", return_xy=False):
         if shape is None:
-            return self._canvas.copy()
+            if return_xy:
+                return self._canvas.copy(), self.X, self.Y
+            else:
+                return self._canvas.copy()
         else:
             XY = np.vstack((self.X.flat,self.Y.flat))
             interp = RegularGridInterpolator((self.x, self.y), self._canvas, method=interp_method)
@@ -97,7 +100,10 @@ class Drawing:
             yi = np.linspace(self.y0, self.y1, shape[1])
             X, Y = np.meshgrid(xi, yi, indexing="ij")
             XY = np.vstack((X.flat, Y.flat)).T
-            return interp(XY).reshape(shape)
+            if return_xy:
+                return interp(XY).reshape(shape), X, Y
+            else:
+                return interp(XY).reshape(shape)
 
     def islands(self):
         return self.geometric_description
@@ -107,7 +113,7 @@ class Drawing:
         if ax is None:
             fig, ax = plt.subplots(figsize=(5,5))
 
-        img = self.canvas(**kwargs)
+        img, X, Y = self.canvas(**kwargs, return_xy=True)
         if what == "dielectric":
             pass
         elif what == "fourier":
@@ -120,7 +126,7 @@ class Drawing:
         a1, a2 = self.lattice
         for i in np.arange(-(tx//2), (tx//2)+1):
             for j in np.arange(-(ty//2), (ty//2)+1):
-                handle = ax.pcolormesh(i * a1[0] + j * a2[0] + self.X, i * a1[1] + j * a2[1] + self.Y, img.real, cmap="Blues")
+                handle = ax.pcolormesh(i * a1[0] + j * a2[0] + X, i * a1[1] + j * a2[1] + Y, img.real, cmap="Blues")
         ax.axis("equal")
         plt.colorbar(handle)
 

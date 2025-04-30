@@ -98,13 +98,13 @@ def free_space_eigenmodes(KX, KY):
     V = Q / eigenvalues 
     return W, V
 
-def incident(pw, p_pol, s_pol, k_vector, normalize=True):
-    logging.debug(f"Building vector with plane wave {pw=}, {p_pol=}, {s_pol=}, {k_vector=}")
+def incident(pw, te_pol, tm_pol, k_vector, normalize=True):
+    logging.debug(f"Building vector with plane wave {pw=}, {te_pol=}, {tm_pol=}, {k_vector=}")
     # Normalize in pol basis
-    pol_norm = np.linalg.norm((abs(p_pol), abs(s_pol)))
+    pol_norm = np.linalg.norm((abs(te_pol), abs(tm_pol)))
     if normalize:
-        p_pol /= pol_norm
-        s_pol /= pol_norm
+        te_pol /= pol_norm
+        tm_pol /= pol_norm
 
     kp = k_vector[0:2]
     kpnorm = np.linalg.norm(kp)
@@ -112,8 +112,8 @@ def incident(pw, p_pol, s_pol, k_vector, normalize=True):
     kbar = np.array(k_vector) / knorm
     deviceNormalUnitVector = np.array([0, 0, -1], dtype=np.complex128)
     if abs(kpnorm) < 1e-8:
-        aTE = np.array([0,1,0])
-        aTM = np.array([1,0,0])
+        aTE = np.array([1,0,0])
+        aTM = np.array([0,1,0])
     else:
         aTE = - np.cross(deviceNormalUnitVector, kbar)
         aTE = aTE / np.linalg.norm(aTE)
@@ -124,7 +124,7 @@ def incident(pw, p_pol, s_pol, k_vector, normalize=True):
     N = prod(pw)
     delta = np.zeros(N, dtype=np.complex128)
     delta[(N-1)//2] = 1
-    pxy = s_pol * aTE + p_pol * aTM
+    pxy = te_pol * aTE + tm_pol * aTM
     return np.hstack([delta*pxy[0], delta*pxy[1]])
 
 def solve_uniform_layer(Kx, Ky, er, m_r = 1):
