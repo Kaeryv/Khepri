@@ -8,6 +8,11 @@
 ```bash
 pip install 'khepri @ git+https://github.com/Kaeryv/Khepri'
 ```
+If you are using [uv](https://github.com/astral-sh/uv) in a new _project_name_ folder:
+```bash
+uv init <project_name>
+uv add 'khepri @ git+https://github.com/Kaeryv/Khepri'
+```
 
 ![Discord](https://img.shields.io/discord/1228737702149623809?style=flat-square)
 [![Python package](https://github.com/Kaeryv/Bast/actions/workflows/python-package.yml/badge.svg)](https://github.com/Kaeryv/Bast/actions/workflows/python-package.yml)
@@ -29,7 +34,7 @@ The code enables the use of extended RCWA, allowing for twisted bilayer systems.
 
 ## Getting started
 
-Here is a sample code to get tou started, don't hesitate to contact me on Github if you need help (via issues for example).
+Here is a sample code to get you started, don't hesitate to contact me on Github if you need help (via issues for example).
 
 ```python
 from khepri.crystal import Crystal
